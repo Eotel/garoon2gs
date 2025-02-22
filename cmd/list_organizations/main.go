@@ -27,10 +27,10 @@ func main() {
 	// 組織IDが指定された場合は組織メンバーを表示
 	if orgID != "" {
 		userList, err := organizations.GetOrganizationUsers(
-			garoonClient.Client,
-			garoonClient.BaseURL,
-			garoonClient.Username,
-			garoonClient.Password,
+			garoonClient.GetHTTPClient(),
+			garoonClient.GetBaseURL(),
+			garoonClient.GetUsername(),
+			garoonClient.GetPassword(),
 			orgID,
 		)
 		if err != nil {
@@ -44,10 +44,10 @@ func main() {
 
 	// 組織IDが指定されていない場合は組織一覧を表示
 	orgs, err := organizations.ListOrganizations(
-		garoonClient.Client,
-		garoonClient.BaseURL,
-		garoonClient.Username,
-		garoonClient.Password,
+		garoonClient.GetHTTPClient(),
+		garoonClient.GetBaseURL(),
+		garoonClient.GetUsername(),
+		garoonClient.GetPassword(),
 	)
 	if err != nil {
 		log.Fatal("組織一覧の取得に失敗しました:", err)

@@ -1,4 +1,3 @@
-// cmd/list_users/main.go
 package main
 
 import (
@@ -21,10 +20,10 @@ func main() {
 
 	// ユーザー一覧の取得
 	userList, err := users.ListUsers(
-		garoonClient.Client,
-		garoonClient.BaseURL,
-		garoonClient.Username,
-		garoonClient.Password,
+		garoonClient.GetHTTPClient(),
+		garoonClient.GetBaseURL(),
+		garoonClient.GetUsername(),
+		garoonClient.GetPassword(),
 	)
 	if err != nil {
 		log.Fatal("ユーザー一覧の取得に失敗しました:", err)
