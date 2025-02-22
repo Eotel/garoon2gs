@@ -65,6 +65,25 @@ func (c *GaroonClient) GetPassword() string {
 	return c.config.Password
 }
 
+func GetConfigDir() (string, error) {
+	// まず実行ファイルのディレクトリを試す
+	if exePath, err := os.Executable(); err == nil {
+		dir := filepath.Dir(exePath)
+		if _, err := os.Stat(filepath.Join(dir, ".env")); err == nil {
+			return dir, nil
+		}
+	}
+
+	// 次にカレントディレクトリを試す
+	if pwd, err := os.Getwd(); err == nil {
+		if _, err := os.Stat(filepath.Join(pwd, ".env")); err == nil {
+			return pwd, nil
+		}
+	}
+
+	return os.Getwd()
+}
+
 // getConfigDir は設定ファイルのディレクトリを取得します
 func getConfigDir() (string, error) {
 	// まず実行ファイルのディレクトリを試す

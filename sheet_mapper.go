@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/csv"
 	"fmt"
+	"github.com/eotel/garoon2gs/internal/client"
 	"log"
 	"os"
 	"path/filepath"
@@ -30,7 +31,7 @@ func NewSheetMapper() (*SheetMapper, error) {
 	}
 
 	// 実行ファイルのディレクトリを取得
-	configDir, err := getConfigDir()
+	configDir, err := client.GetConfigDir()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get config directory: %v", err)
 	}

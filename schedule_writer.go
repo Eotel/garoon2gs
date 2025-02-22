@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/eotel/garoon2gs/internal/client"
 	"google.golang.org/api/sheets/v4"
 	"log"
 	"os"
@@ -148,7 +149,7 @@ func (w *ScheduleWriter) getCellPosition(date time.Time) (row int, col string, e
 }
 
 // determineEventStatus はイベントの状態を判定します
-func (w *ScheduleWriter) determineEventStatus(events []Event) string {
+func (w *ScheduleWriter) determineEventStatus(events []client.Event) string {
 	if len(events) == 0 {
 		// 予定がない場合は通常の勤務地を返す
 		return "渋谷"
@@ -189,7 +190,7 @@ func columnIndexToName(index int) string {
 // WriteSchedule は指定されたシートにスケジュールを書き込みます
 // schedule_writer.go の WriteSchedule 関数を修正
 // schedule_writer.go の WriteSchedule 関数を修正
-func (w *ScheduleWriter) WriteSchedule(srv *sheets.Service, spreadsheetID, sheetName string, monthlyEvents map[int][]Event) error {
+func (w *ScheduleWriter) WriteSchedule(srv *sheets.Service, spreadsheetID, sheetName string, monthlyEvents map[int][]client.Event) error {
 	// まずヘッダー行から名前の列を特定
 	headerRange := fmt.Sprintf("%s!%d:%d", sheetName, w.headerRow, w.headerRow)
 	log.Printf("Reading header row from range: %s", headerRange)
