@@ -18,6 +18,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -131,6 +132,7 @@ func NewSchedule(baseURL, username, password, certPath, certPassword string, hol
 
 // FetchEvents は指定された期間の予定を取得します
 // startDate から endDate までの予定を取得し、ページングがある場合は全て取得します
+// FetchEvents を修正
 func (s *Schedule) FetchEvents(startDate, endDate time.Time) ([]Event, error) {
 	var allEvents []Event
 	offset := 0
@@ -147,7 +149,7 @@ func (s *Schedule) FetchEvents(startDate, endDate time.Time) ([]Event, error) {
 		reqURL := fmt.Sprintf("%s/api/v1/schedule/events?%s", s.baseURL, params.Encode())
 		req, err := http.NewRequest("GET", reqURL, nil)
 		if err != nil {
-			return nil, false, err
+			return nil, false, fmt.Errorf("リクエストの作成に失敗しました: %v", err)
 		}
 
 		auth := base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%s:%s", s.username, s.password)))
@@ -155,22 +157,35 @@ func (s *Schedule) FetchEvents(startDate, endDate time.Time) ([]Event, error) {
 		req.Header.Set("Content-Type", "application/json")
 
 		resp, err := s.client.Do(req)
-
-		if resp.StatusCode == http.StatusForbidden ||
-			resp.StatusCode == http.StatusUnauthorized ||
-			resp.StatusCode == 496 { // No Cert
-			return nil, false, fmt.Errorf("認証エラー: クライアント証明書が必要な可能性があります")
+		if err != nil {
+			return nil, false, fmt.Errorf("APIリクエストに失敗しました: %v", err)
 		}
-
 		defer func(Body io.ReadCloser) {
 			err := Body.Close()
 			if err != nil {
-				log.Printf("Failed to close response body: %v", err)
+				log.Printf("レスポンスのクローズに失敗しました: %v", err)
 			}
 		}(resp.Body)
 
-		if err != nil {
-			return nil, false, err
+		// ステータスコードチェックを先に行う
+		if resp.StatusCode == http.StatusForbidden ||
+			resp.StatusCode == http.StatusUnauthorized ||
+			resp.StatusCode == 496 { // No Cert
+			return nil, false, fmt.Errorf("認証エラー: クライアント証明書が必要です（ステータスコード: %d）", resp.StatusCode)
+		}
+
+		if resp.StatusCode != http.StatusOK {
+			// レスポンスボディの最初の部分だけを取得（HTMLの場合は表示しない）
+			body, _ := io.ReadAll(resp.Body)
+			bodyStr := string(body)
+			if strings.HasPrefix(bodyStr, "<!DOCTYPE") || strings.HasPrefix(bodyStr, "<html") {
+				return nil, false, fmt.Errorf("APIエラー（ステータスコード: %d）: クライアント証明書が必要です", resp.StatusCode)
+			}
+			// JSONの場合はそのまま表示（最大100文字まで）
+			if len(bodyStr) > 100 {
+				bodyStr = bodyStr[:100] + "..."
+			}
+			return nil, false, fmt.Errorf("APIエラー（ステータスコード: %d）: %s", resp.StatusCode, bodyStr)
 		}
 
 		var scheduleResp struct {
@@ -179,7 +194,7 @@ func (s *Schedule) FetchEvents(startDate, endDate time.Time) ([]Event, error) {
 		}
 
 		if err := json.NewDecoder(resp.Body).Decode(&scheduleResp); err != nil {
-			return nil, false, err
+			return nil, false, fmt.Errorf("JSONのデコードに失敗しました: %v", err)
 		}
 
 		return scheduleResp.Events, scheduleResp.HasNext, nil
@@ -214,79 +229,106 @@ func (s *Schedule) isHoliday(eventMenu string) bool {
 }
 
 // SaveToSheet は予定をGoogle Sheetsに保存します
-func SaveToSheet(serviceAccountFile, spreadsheetID, sheetName string, events []Event, schedule *Schedule) error {
+func SaveToSheet(serviceAccountFile, spreadsheetID string, events []Event, schedule *Schedule) error {
 	// スプレッドシートサービスの初期化
-	initSheetService := func() (*sheets.Service, error) {
-		ctx := context.Background()
-		return sheets.NewService(ctx,
-			option.WithCredentialsFile(serviceAccountFile),
-			option.WithScopes(sheets.SpreadsheetsScope))
-	}
-
-	srv, err := initSheetService()
+	ctx := context.Background()
+	srv, err := sheets.NewService(ctx,
+		option.WithCredentialsFile(serviceAccountFile),
+		option.WithScopes(sheets.SpreadsheetsScope))
 	if err != nil {
 		return fmt.Errorf("sheets クライアントの作成に失敗しました: %v", err)
 	}
 
-	// シートの存在確認と作成
-	ensureSheet := func() error {
-		spreadsheet, err := srv.Spreadsheets.Get(spreadsheetID).Do()
+	// スプレッドシートの情報を取得
+	spreadsheet, err := srv.Spreadsheets.Get(spreadsheetID).Do()
+	if err != nil {
+		return fmt.Errorf("スプレッドシートの取得に失敗しました: %v", err)
+	}
+
+	// 既存のシート名を取得
+	existingSheets := make(map[string]bool)
+	for _, sheet := range spreadsheet.Sheets {
+		existingSheets[sheet.Properties.Title] = true
+	}
+
+	// イベントを日付でグループ化
+	eventsByDate := make(map[string]map[int][]Event)
+	for _, e := range events {
+		eventTime, err := time.Parse(time.RFC3339, e.Start.DateTime)
 		if err != nil {
-			return fmt.Errorf("スプレッドシートの取得に失敗しました: %v", err)
+			log.Printf("イベントの日時解析に失敗しました: %v", err)
+			continue
 		}
 
-		for _, sheet := range spreadsheet.Sheets {
-			if sheet.Properties.Title == sheetName {
-				return nil
-			}
+		// シート名を取得
+		sheetMapper, err := NewSheetMapper()
+		if err != nil {
+			return fmt.Errorf("sheet mapperの作成に失敗しました: %v", err)
 		}
 
-		request := &sheets.BatchUpdateSpreadsheetRequest{
-			Requests: []*sheets.Request{{
-				AddSheet: &sheets.AddSheetRequest{
-					Properties: &sheets.SheetProperties{Title: sheetName},
-				},
-			}},
+		targetSheet := sheetMapper.GetSheetName(eventTime)
+		if targetSheet == nil {
+			// マッピングにない月はスキップ
+			continue
 		}
-		_, err = srv.Spreadsheets.BatchUpdate(spreadsheetID, request).Do()
-		return err
+
+		// シートが存在しない場合はスキップ
+		if !existingSheets[*targetSheet] {
+			log.Printf("シート %s が存在しないためスキップします", *targetSheet)
+			continue
+		}
+
+		// シートごとのマップを初期化
+		if eventsByDate[*targetSheet] == nil {
+			eventsByDate[*targetSheet] = make(map[int][]Event)
+		}
+
+		// 日付でグループ化
+		day := eventTime.Day()
+		eventsByDate[*targetSheet][day] = append(eventsByDate[*targetSheet][day], e)
 	}
 
-	if err := ensureSheet(); err != nil {
-		return fmt.Errorf("シートの作成に失敗しました: %v", err)
+	// スケジュール書き込み用のインスタンスを作成
+	writer, err := NewScheduleWriter()
+	if err != nil {
+		return fmt.Errorf("schedule writerの作成に失敗しました: %v", err)
 	}
+	writer.holidayMenus = schedule.holidayMenus
 
-	// データの書き込み
-	writeData := func() error {
-		var values [][]interface{}
-		header := []interface{}{"ID", "Subject", "EventMenu", "Start", "End", "Location", "IsHoliday"}
-		values = append(values, header)
-
-		for _, e := range events {
-			row := []interface{}{
-				e.ID,
-				e.Subject,
-				e.EventMenu,
-				e.Start.DateTime,
-				e.End.DateTime,
-				e.Location,
-				schedule.isHoliday(e.EventMenu),
-			}
-			values = append(values, row)
+	// シートごとに書き込み
+	for sheetName, dailyEvents := range eventsByDate {
+		// データの書き込み
+		err = writer.WriteSchedule(srv, spreadsheetID, sheetName, dailyEvents)
+		if err != nil {
+			return fmt.Errorf("シート %s の更新に失敗しました: %v", sheetName, err)
 		}
-
-		writeRange := fmt.Sprintf("%s!A1", sheetName)
-		valueRange := &sheets.ValueRange{Values: values}
-		_, err := srv.Spreadsheets.Values.Update(spreadsheetID, writeRange, valueRange).
-			ValueInputOption("USER_ENTERED").Do()
-		return err
-	}
-
-	if err := writeData(); err != nil {
-		return fmt.Errorf("シートの更新に失敗しました: %v", err)
 	}
 
 	return nil
+}
+
+// ensureSheet はシートの存在確認と作成を行います
+func ensureSheet(srv *sheets.Service, spreadsheetID, sheetName string) error {
+	spreadsheet, err := srv.Spreadsheets.Get(spreadsheetID).Do()
+	if err != nil {
+		return fmt.Errorf("スプレッドシートの取得に失敗しました: %v", err)
+	}
+
+	for _, sheet := range spreadsheet.Sheets {
+		if sheet.Properties.Title == sheetName {
+			return nil
+		}
+	}
+
+	request := &sheets.BatchUpdateSpreadsheetRequest{
+		Requests: []*sheets.Request{{
+			AddSheet: &sheets.AddSheetRequest{
+				Properties: &sheets.SheetProperties{Title: sheetName},
+			},
+		}},
+	}
+	_, err = srv.Spreadsheets.BatchUpdate(spreadsheetID, request).Do()
+	return err
 }
 
 func main() {
@@ -371,11 +413,26 @@ func main() {
 		log.Fatalf("Scheduleの初期化に失敗しました: %v", err)
 	}
 
-	// 現在から60日後までの予定を取得
+	// 現在の年月を取得
 	now := time.Now()
-	endDate := now.AddDate(0, 0, 60)
+	currentYear := now.Year()
+	currentMonth := now.Month()
 
-	events, err := schedule.FetchEvents(now, endDate)
+	// 現在の月の初日
+	startDate := time.Date(currentYear, currentMonth, 1, 0, 0, 0, 0, time.Local)
+
+	// 2ヶ月後の月末日を計算
+	endYear := currentYear
+	endMonth := currentMonth + 3
+	if endMonth > 12 {
+		endYear++
+		endMonth = endMonth - 12
+	}
+	endDate := time.Date(endYear, endMonth+1, 1, 0, 0, 0, 0, time.Local).Add(-time.Second)
+
+	log.Printf("取得期間: %s から %s まで", startDate.Format("2006-01-02"), endDate.Format("2006-01-02"))
+
+	events, err := schedule.FetchEvents(startDate, endDate)
 	if err != nil {
 		log.Fatalf("予定の取得に失敗しました: %v", err)
 	}
@@ -386,7 +443,7 @@ func main() {
 	}
 
 	// スプレッドシートに保存
-	err = SaveToSheet(config.serviceAccount, config.spreadsheetID, config.username, events, schedule)
+	err = SaveToSheet(config.serviceAccount, config.spreadsheetID, events, schedule)
 	if err != nil {
 		log.Fatalf("スプレッドシートへの保存に失敗しました: %v", err)
 	}

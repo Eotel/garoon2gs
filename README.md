@@ -1,3 +1,8 @@
 # Garoon to Google Sheets
 
-## 手順
+## ビルド
+
+```bash
+$ go build .
+```
+
