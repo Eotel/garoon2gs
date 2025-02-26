@@ -49,6 +49,9 @@ signs:
   - cmd: codesign
     args:
       - --force
+      - --timestamp
+      - --options
+      - runtime
       - -s
       - "Developer ID Application: {{ .Env.APPLE_DEVELOPER_ID }}"
       - ${artifact}
@@ -56,6 +59,23 @@ signs:
     ids:
       - garoon2gs
     signature: "${artifact}.sig"
+
+# 公証設定
+after:
+  hooks:
+    - cmd: |
+        if [[ "${SKIP_NOTARIZATION}" != "true" && "{{.Env.APPLE_ID}}" != "" ]]; then
+          echo "macOSバイナリの公証を実行します..."
+          ditto -c -k --keepParent "{{ .ArtifactPath }}" "{{ .ArtifactPath }}.zip"
+          xcrun notarytool submit "{{ .ArtifactPath }}.zip" --apple-id {{ .Env.APPLE_ID }} \
+            --password {{ .Env.APPLE_APP_PWD }} --team-id {{ .Env.APPLE_TEAM_ID }} --wait
+          xcrun stapler staple "{{ .ArtifactPath }}"
+          rm -f "{{ .ArtifactPath }}.zip"
+          echo "公証と添付が完了しました"
+        else
+          echo "公証をスキップしました"
+        fi
+      artifacts: darwin-amd64 darwin-arm64
 
 # リリースノート生成設定
 changelog:
