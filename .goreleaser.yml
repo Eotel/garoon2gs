@@ -1,0 +1,108 @@
+# .goreleaser.yml - GoReleaser設定ファイル
+
+# ビルド設定
+builds:
+  - id: garoon2gs
+    main: ./garoon2gs.go
+    binary: garoon2gs
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - windows
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      - goos: windows
+        goarch: arm64
+    ldflags:
+      - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}}
+    
+# アーカイブ設定
+archives:
+  - id: default
+    format_overrides:
+      - goos: windows
+        format: zip
+    replacements:
+      darwin: macos
+    files:
+      - README.md
+      - LICENSE
+      - sheet_mapping.csv.example
+      - user_mapping.csv.example
+      - .env.sample
+
+# チェックサム設定
+checksum:
+  name_template: 'checksums.txt'
+  algorithm: sha256
+
+# スナップショット設定
+snapshot:
+  name_template: "{{ incpatch .Version }}-next"
+
+# 署名設定 (macOS環境用)
+signs:
+  - cmd: codesign
+    args:
+      - --force
+      - -s
+      - "Developer ID Application: {{ .Env.APPLE_DEVELOPER_ID }}"
+      - ${artifact}
+    artifacts: all
+    ids:
+      - garoon2gs
+    signature: "${artifact}.sig"
+
+# リリースノート生成設定
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^chore:'
+      - Merge pull request
+      - Merge branch
+
+# ブルーリント設定
+brews:
+  - name: garoon2gs
+    description: "GaroonのスケジュールをGoogle Sheetsに同期するツール"
+    homepage: "https://github.com/eotel/garoon2gs"
+    license: "MIT"
+    tap:
+      owner: eotel
+      name: homebrew-tap
+    folder: Formula
+    install: |
+      bin.install "garoon2gs"
+
+# GitHub Release設定  
+release:
+  draft: true
+  prerelease: auto
+  name_template: "v{{.Version}}"
+  header: |
+    # Garoon2GS v{{.Version}}
+  
+  footer: |
+    ## インストール方法
+    
+    ### バイナリをダウンロード
+    
+    各プラットフォーム向けのビルド済みバイナリがリリースページからダウンロードできます。
+    
+    ### Homebrewでインストール (macOS)
+    
+    ```bash
+    brew tap eotel/tap
+    brew install garoon2gs
+    ```
+    
+    ### 環境設定
+    
+    ツールを使用する前に`.env`ファイルを作成し、必要な設定を行ってください。

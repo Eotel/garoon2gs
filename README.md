@@ -9,6 +9,7 @@ GaroonのスケジュールをGoogle Sheetsに同期するツールです。複�
 - 月別シートの自動マッピング
 - 休暇・外出などのイベント種別の自動判定
 - クライアント証明書認証対応
+- 過去日付の上書き防止機能
 
 ## 必要条件
 
@@ -19,10 +20,25 @@ GaroonのスケジュールをGoogle Sheetsに同期するツールです。複�
 
 ## インストール
 
+### バイナリをダウンロード
+
+[リリースページ](https://github.com/eotel/garoon2gs/releases)から、ご利用のプラットフォーム用のバイナリをダウンロードしてください。
+
+### ソースからビルド
+
 ```bash
+# リポジトリをクローン
 git clone https://github.com/eotel/garoon2gs.git
 cd garoon2gs
-go build .
+
+# 通常ビルド
+make build
+
+# 全プラットフォーム向けにビルド
+make build-all
+
+# バージョン情報の確認
+./garoon2gs -version
 ```
 
 ## 設定

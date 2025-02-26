@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"github.com/eotel/garoon2gs/internal/client"
 	"github.com/eotel/garoon2gs/internal/mapping"
@@ -15,7 +16,24 @@ import (
 	"time"
 )
 
+// バージョン情報（ビルド時に設定される）
+var (
+	version = "dev"
+	commit  = "none"
+	date    = "unknown"
+)
+
 func main() {
+	// コマンドラインオプションの設定
+	showVersion := flag.Bool("version", false, "バージョン情報を表示")
+	flag.Parse()
+
+	// バージョン情報の表示
+	if *showVersion {
+		fmt.Printf("Garoon2GS version %s, commit %s, built at %s\n", version, commit, date)
+		return
+	}
+
 	configDir, err := client.GetConfigDir()
 	if err != nil {
 		log.Fatal("設定ディレクトリの取得に失敗しました:", err)
