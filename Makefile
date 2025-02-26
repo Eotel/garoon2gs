@@ -155,12 +155,12 @@ clean:
 # Release
 .PHONY: release
 release: clean build-all
-	goreleaser release --rm-dist
+	goreleaser release --clean
 
 # Test release (no upload)
 .PHONY: release-test
 release-test: clean
-	goreleaser release --skip-publish --rm-dist
+	goreleaser release --snapshot --clean
 
 # Development cycle
 .PHONY: dev
