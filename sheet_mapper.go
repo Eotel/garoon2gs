@@ -107,7 +107,7 @@ func (sm *SheetMapper) GetMonthFromSheetName(sheetName string) *time.Time {
 			return &m.Month
 		}
 	}
-	
+
 	log.Printf("No month mapping found for sheet: %s", sheetName)
 	return nil
 }

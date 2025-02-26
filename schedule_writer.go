@@ -235,12 +235,12 @@ func (w *ScheduleWriter) WriteSchedule(srv *sheets.Service, spreadsheetID, sheet
 	if err != nil {
 		return fmt.Errorf("failed to create sheet mapper: %v", err)
 	}
-	
+
 	sheetMonth := sheetMapper.GetMonthFromSheetName(sheetName)
 	if sheetMonth == nil {
 		return fmt.Errorf("failed to determine month for sheet: %s", sheetName)
 	}
-	
+
 	log.Printf("Sheet %s corresponds to month: %s", sheetName, sheetMonth.Format("2006-01"))
 
 	// 更新内容を準備
@@ -273,7 +273,7 @@ func (w *ScheduleWriter) WriteSchedule(srv *sheets.Service, spreadsheetID, sheet
 
 		// このシートのこの日の日付を計算
 		cellDate := time.Date(sheetMonth.Year(), sheetMonth.Month(), day, 0, 0, 0, 0, time.Local)
-		
+
 		// 過去の日付はスキップ
 		if cellDate.Before(today) {
 			log.Printf("Skipping past date: %s (before today: %s)", cellDate.Format("2006-01-02"), today.Format("2006-01-02"))
