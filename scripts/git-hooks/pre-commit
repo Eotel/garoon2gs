@@ -1,0 +1,35 @@
+#!/bin/bash
+
+echo "Running pre-commit hook..."
+
+# Goコードを整形
+echo "Running go fmt..."
+go fmt ./...
+if [ $? -ne 0 ]; then
+    echo "go fmt failed. Please fix formatting issues before committing."
+    exit 1
+fi
+
+# Goコードを静的解析
+echo "Running go vet..."
+go vet ./...
+if [ $? -ne 0 ]; then
+    echo "go vet failed. Please fix issues before committing."
+    exit 1
+fi
+
+# golangci-lintが利用可能な場合は実行
+if command -v golangci-lint &> /dev/null; then
+    echo "Running golangci-lint..."
+    golangci-lint run
+    if [ $? -ne 0 ]; then
+        echo "golangci-lint failed. Please fix issues before committing."
+        exit 1
+    fi
+fi
+
+# 変更がある場合は再度staging
+git diff --name-only --cached | grep "\.go$" | xargs -I{} git add {}
+
+echo "Pre-commit hook finished successfully"
+exit 0
