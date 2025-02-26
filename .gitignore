@@ -164,6 +164,8 @@ go.work.sum
 
 # env file
 .env
+.env.*
+!.env.sample
 
 ### VisualStudio template
 ## Ignore Visual Studio temporary files, build results, and
@@ -592,4 +594,6 @@ $RECYCLE.BIN/
 *.lnk
 
 
-.env.dev
+# ビルド生成物
+/garoon2gs
+/dist/
