@@ -16,7 +16,7 @@ import (
 	"time"
 )
 
-// バージョン情報（ビルド時に設定される）
+// Version information (set during build)
 var (
 	version = "dev"
 	commit  = "none"
