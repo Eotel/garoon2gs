@@ -57,11 +57,51 @@ sign-macos:
 	codesign -s "${APPLE_DEVELOPER_ID}" --force --timestamp --options runtime dist/${BINARY_NAME}_macos_amd64
 	codesign -s "${APPLE_DEVELOPER_ID}" --force --timestamp --options runtime dist/${BINARY_NAME}_macos_arm64
 
-# macOS release package and notarization
-.PHONY: notarize-macos
-notarize-macos:
-	# Clean up
-	rm -rf dist/release
+# Unsigned release (build only without signing or notarization)
+.PHONY: release-unsigned
+release-unsigned: clean build-all
+	@echo "Creating unsigned release packages..."
+	mkdir -p dist/release
+	
+	# Copy release files
+	cp README.md dist/release/
+	cp .env.sample dist/release/
+	cp sheet_mapping.csv dist/release/
+	cp user_mapping.csv dist/release/
+	cp LICENSE dist/release/
+	
+	# Package for Intel Mac
+	@echo "Creating Intel Mac (x86_64) release package..."
+	mkdir -p dist/release/intel
+	cp dist/${BINARY_NAME}_macos_amd64 dist/release/intel/${BINARY_NAME}
+	@echo "$${INSTALL_INTEL}" > dist/release/intel/INSTALL.txt
+	
+	# Package for Apple Silicon
+	@echo "Creating Apple Silicon (arm64) release package..."
+	mkdir -p dist/release/apple_silicon
+	cp dist/${BINARY_NAME}_macos_arm64 dist/release/apple_silicon/${BINARY_NAME}
+	@echo "$${INSTALL_SILICON}" > dist/release/apple_silicon/INSTALL.txt
+	
+	# Create disk image for Intel Mac
+	@echo "Creating disk image for Intel Mac..."
+	hdiutil create -volname "Garoon2GS-Intel" -srcfolder dist/release/intel -ov -format UDZO dist/release/${BINARY_NAME}-intel.dmg
+	
+	# Create disk image for Apple Silicon
+	@echo "Creating disk image for Apple Silicon..."
+	hdiutil create -volname "Garoon2GS-AppleSilicon" -srcfolder dist/release/apple_silicon -ov -format UDZO dist/release/${BINARY_NAME}-apple_silicon.dmg
+	
+	@echo ""
+	@echo "==========================================="
+	@echo "Unsigned release package creation complete!"
+	@echo "Disk images are available at:"
+	@echo "Intel Mac: dist/release/${BINARY_NAME}-intel.dmg"
+	@echo "Apple Silicon: dist/release/${BINARY_NAME}-apple_silicon.dmg"
+	@echo "==========================================="
+
+# Official release with code signing and notarization
+.PHONY: release
+release: clean build-all
+	@echo "Creating signed and notarized release packages..."
 	mkdir -p dist/release
 	
 	# Make binaries executable
@@ -73,12 +113,12 @@ notarize-macos:
 	codesign -s "${APPLE_DEVELOPER_ID}" --force --timestamp --options runtime -v dist/${BINARY_NAME}_macos_amd64
 	codesign -s "${APPLE_DEVELOPER_ID}" --force --timestamp --options runtime -v dist/${BINARY_NAME}_macos_arm64
 	
-	# Add README and configuration files to release directory
-	@echo "Creating release package contents..."
-	cp README.md dist/release/README.md
+	# Copy release files
+	cp README.md dist/release/
 	cp .env.sample dist/release/
 	cp sheet_mapping.csv dist/release/
 	cp user_mapping.csv dist/release/
+	cp LICENSE dist/release/
 	
 	# Package for Intel Mac
 	@echo "Creating Intel Mac (x86_64) release package..."
@@ -105,12 +145,9 @@ notarize-macos:
 	codesign -s "${APPLE_DEVELOPER_ID}" --force --timestamp --options runtime -v dist/release/${BINARY_NAME}-intel.dmg
 	codesign -s "${APPLE_DEVELOPER_ID}" --force --timestamp --options runtime -v dist/release/${BINARY_NAME}-apple_silicon.dmg
 	
-	# Submit Intel Mac DMG for notarization
-	@echo "Submitting Intel Mac disk image for notarization..."
+	# Submit DMGs for notarization
+	@echo "Submitting disk images for notarization..."
 	xcrun notarytool submit dist/release/${BINARY_NAME}-intel.dmg --apple-id "${APPLE_ID}" --password "${APPLE_APP_PWD}" --team-id "${APPLE_TEAM_ID}" --wait
-	
-	# Submit Apple Silicon DMG for notarization
-	@echo "Submitting Apple Silicon disk image for notarization..."
 	xcrun notarytool submit dist/release/${BINARY_NAME}-apple_silicon.dmg --apple-id "${APPLE_ID}" --password "${APPLE_APP_PWD}" --team-id "${APPLE_TEAM_ID}" --wait
 	
 	# Staple notarization tickets to DMGs
@@ -125,11 +162,21 @@ notarize-macos:
 	
 	@echo ""
 	@echo "==========================================="
-	@echo "Release package creation complete\!"
-	@echo "Notarized disk images are available at:"
+	@echo "Signed and notarized release complete!"
+	@echo "Distribution-ready disk images are available at:"
 	@echo "Intel Mac: dist/release/${BINARY_NAME}-intel.dmg"
 	@echo "Apple Silicon: dist/release/${BINARY_NAME}-apple_silicon.dmg"
 	@echo "==========================================="
+
+# Release with GoReleaser (requires GitHub token)
+.PHONY: release-github
+release-github: clean build-all
+	goreleaser release --clean
+
+# Test release (no upload)
+.PHONY: release-test
+release-test: clean
+	goreleaser release --snapshot --clean
 
 # Test
 .PHONY: test
@@ -152,57 +199,6 @@ clean:
 	rm -f ${BINARY_NAME}
 	rm -rf dist/
 
-# Release with GoReleaser (requires GitHub token)
-.PHONY: release-github
-release-github: clean build-all
-	goreleaser release --clean
-
-# Local release (build only without publishing)
-.PHONY: release
-release: clean build-all
-	@echo "Creating local release packages..."
-	mkdir -p dist/release
-	
-	# Copy release files
-	cp README.md dist/release/
-	cp .env.sample dist/release/
-	cp sheet_mapping.csv dist/release/
-	cp user_mapping.csv dist/release/
-	cp LICENSE dist/release/
-	
-	# Package for Intel Mac
-	@echo "Creating Intel Mac (x86_64) release package..."
-	mkdir -p dist/release/intel
-	cp dist/garoon2gs_macos_amd64 dist/release/intel/garoon2gs
-	@echo "$${INSTALL_INTEL}" > dist/release/intel/INSTALL.txt
-	
-	# Package for Apple Silicon
-	@echo "Creating Apple Silicon (arm64) release package..."
-	mkdir -p dist/release/apple_silicon
-	cp dist/garoon2gs_macos_arm64 dist/release/apple_silicon/garoon2gs
-	@echo "$${INSTALL_SILICON}" > dist/release/apple_silicon/INSTALL.txt
-	
-	# Create disk image for Intel Mac
-	@echo "Creating disk image for Intel Mac..."
-	hdiutil create -volname "Garoon2GS-Intel" -srcfolder dist/release/intel -ov -format UDZO dist/release/garoon2gs-intel.dmg
-	
-	# Create disk image for Apple Silicon
-	@echo "Creating disk image for Apple Silicon..."
-	hdiutil create -volname "Garoon2GS-AppleSilicon" -srcfolder dist/release/apple_silicon -ov -format UDZO dist/release/garoon2gs-apple_silicon.dmg
-	
-	@echo ""
-	@echo "==========================================="
-	@echo "Local release package creation complete!"
-	@echo "Disk images are available at:"
-	@echo "Intel Mac: dist/release/garoon2gs-intel.dmg"
-	@echo "Apple Silicon: dist/release/garoon2gs-apple_silicon.dmg"
-	@echo "==========================================="
-
-# Test release (no upload)
-.PHONY: release-test
-release-test: clean
-	goreleaser release --snapshot --clean
-
 # Development cycle
 .PHONY: dev
 dev: fmt lint test build
@@ -217,13 +213,14 @@ help:
 	@echo "  build         - Build binary for current platform"
 	@echo "  build-all     - Build binaries for all platforms"
 	@echo "  sign-macos    - Sign macOS binaries"
-	@echo "  notarize-macos - Notarize macOS binaries"
+	@echo "  release       - Build, sign and notarize full release (requires Apple Developer ID)"
+	@echo "  release-unsigned - Create unsigned release packages"
+	@echo "  release-github - Release with GoReleaser (requires GitHub token)"
+	@echo "  release-test  - Test GoReleaser release (no publish)"
 	@echo "  test          - Run tests"
 	@echo "  lint          - Run linter"
 	@echo "  fmt           - Format code"
 	@echo "  clean         - Clean build artifacts"
-	@echo "  release       - Release with GoReleaser"
-	@echo "  release-test  - Test GoReleaser release (no publish)"
 	@echo "  dev           - Run format, lint, test, build"
 	@echo ""
 	@echo "Environment variables:"
