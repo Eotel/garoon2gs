@@ -16,6 +16,12 @@ Installation:
 2. Run "chmod +x garoon2gs" in terminal to make it executable
 3. Right-click and select "Open" for first run
 
+File Placement:
+- The .env file, CSV files, service account JSON, and client certificates
+  must be placed in the same directory as the executable
+- Rename .env.sample to .env and configure settings as needed
+- Make sure sheet_mapping.csv and user_mapping.csv are properly configured
+
 Usage:
 See README.md for details.
 endef
@@ -28,6 +34,12 @@ Installation:
 1. Copy garoon2gs to any directory
 2. Run "chmod +x garoon2gs" in terminal to make it executable
 3. Right-click and select "Open" for first run
+
+File Placement:
+- The .env file, CSV files, service account JSON, and client certificates
+  must be placed in the same directory as the executable
+- Rename .env.sample to .env and configure settings as needed
+- Make sure sheet_mapping.csv and user_mapping.csv are properly configured
 
 Usage:
 See README.md for details.
