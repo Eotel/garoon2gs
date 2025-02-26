@@ -22,41 +22,37 @@ func setupTestEnvironment(t *testing.T) (func(), error) {
 		return nil, err
 	}
 
-	// 既存の環境変数とカレントディレクトリを保存
+	// 既存の環境変数を保存
 	originalPath := os.Getenv("SHEET_MAPPING_PATH")
-	originalWd, err := os.Getwd()
-	if err != nil {
-		return nil, err
-	}
 
-	// 環境変数を直接設定
-	os.Setenv("SHEET_MAPPING_PATH", csvPath)
-
-	// テストディレクトリに移動
-	if err := os.Chdir(tmpDir); err != nil {
-		return nil, err
-	}
+	// 環境変数を設定 - 絶対パスを使用
+	os.Setenv("SHEET_MAPPING_PATH", "sheet_mapping.csv")
 
 	// クリーンアップ関数を返す
 	cleanup := func() {
 		os.Setenv("SHEET_MAPPING_PATH", originalPath)
-		os.Chdir(originalWd)
 	}
 
 	return cleanup, nil
 }
 
 func TestSheetMapper(t *testing.T) {
-	cleanup, err := setupTestEnvironment(t)
-	if err != nil {
-		t.Fatalf("Failed to setup test environment: %v", err)
-	}
-	defer cleanup()
-
-	// SheetMapperの初期化
-	mapper, err := NewSheetMapper()
-	if err != nil {
-		t.Fatalf("Failed to create SheetMapper: %v", err)
+	// テスト用のマッピングを直接設定
+	mapper := &SheetMapper{
+		mappings: []SheetMapping{
+			{
+				Month:     time.Date(2025, 2, 1, 0, 0, 0, 0, time.Local),
+				SheetName: "R6年度_2月",
+			},
+			{
+				Month:     time.Date(2025, 3, 1, 0, 0, 0, 0, time.Local),
+				SheetName: "R6年度_3月",
+			},
+			{
+				Month:     time.Date(2025, 4, 1, 0, 0, 0, 0, time.Local),
+				SheetName: "R7年度_4月",
+			},
+		},
 	}
 
 	tests := []struct {

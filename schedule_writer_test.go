@@ -1,10 +1,14 @@
 package main
 
 import (
+	"github.com/eotel/garoon2gs/internal/client"
 	"os"
 	"testing"
 	"time"
 )
+
+// Event はテストで使用するイベント構造体です
+type Event = client.Event
 
 func setupWriterTest(t *testing.T) func() {
 	// テスト用の環境変数を設定
@@ -116,6 +120,8 @@ func TestDetermineEventStatus(t *testing.T) {
 
 	// holidayMenusを設定
 	writer.holidayMenus = []string{"休暇", "週休"}
+	// normalPlaceを設定
+	writer.normalPlace = "渋谷"
 
 	tests := []struct {
 		name          string
@@ -141,17 +147,17 @@ func TestDetermineEventStatus(t *testing.T) {
 			expectedValue: "週休",
 		},
 		{
-			name: "休暇も週休もない場合は勤務",
+			name: "休暇も週休もない場合は渋谷",
 			events: []Event{
 				{EventMenu: "イベント"},
 				{EventMenu: "ミーティング"},
 			},
-			expectedValue: "勤務",
+			expectedValue: "渋谷",
 		},
 		{
-			name:          "イベントがない場合は勤務",
+			name:          "イベントがない場合は渋谷",
 			events:        []Event{},
-			expectedValue: "勤務",
+			expectedValue: "渋谷",
 		},
 	}
 

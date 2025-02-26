@@ -180,9 +180,12 @@ func (w *ScheduleWriter) determineEventStatus(events []client.Event) string {
 // columnIndexToName は0-based indexをA1記法の列名に変換します
 func columnIndexToName(index int) string {
 	name := ""
-	for index >= 0 {
+	index++ // 1-basedに変換（Excel/Googleスプレッドシートの列は1から始まるため）
+
+	for index > 0 {
+		index-- // 0-basedに戻す（'A'から始まるため）
 		name = string('A'+byte(index%26)) + name
-		index = index/26 - 1
+		index = index / 26
 	}
 	return name
 }
