@@ -152,10 +152,51 @@ clean:
 	rm -f ${BINARY_NAME}
 	rm -rf dist/
 
-# Release
+# Release with GoReleaser (requires GitHub token)
+.PHONY: release-github
+release-github: clean build-all
+	goreleaser release --clean
+
+# Local release (build only without publishing)
 .PHONY: release
 release: clean build-all
-	goreleaser release --clean
+	@echo "Creating local release packages..."
+	mkdir -p dist/release
+	
+	# Copy release files
+	cp README.md dist/release/
+	cp .env.sample dist/release/
+	cp sheet_mapping.csv dist/release/
+	cp user_mapping.csv dist/release/
+	cp LICENSE dist/release/
+	
+	# Package for Intel Mac
+	@echo "Creating Intel Mac (x86_64) release package..."
+	mkdir -p dist/release/intel
+	cp dist/garoon2gs_macos_amd64 dist/release/intel/garoon2gs
+	@echo "$${INSTALL_INTEL}" > dist/release/intel/INSTALL.txt
+	
+	# Package for Apple Silicon
+	@echo "Creating Apple Silicon (arm64) release package..."
+	mkdir -p dist/release/apple_silicon
+	cp dist/garoon2gs_macos_arm64 dist/release/apple_silicon/garoon2gs
+	@echo "$${INSTALL_SILICON}" > dist/release/apple_silicon/INSTALL.txt
+	
+	# Create disk image for Intel Mac
+	@echo "Creating disk image for Intel Mac..."
+	hdiutil create -volname "Garoon2GS-Intel" -srcfolder dist/release/intel -ov -format UDZO dist/release/garoon2gs-intel.dmg
+	
+	# Create disk image for Apple Silicon
+	@echo "Creating disk image for Apple Silicon..."
+	hdiutil create -volname "Garoon2GS-AppleSilicon" -srcfolder dist/release/apple_silicon -ov -format UDZO dist/release/garoon2gs-apple_silicon.dmg
+	
+	@echo ""
+	@echo "==========================================="
+	@echo "Local release package creation complete!"
+	@echo "Disk images are available at:"
+	@echo "Intel Mac: dist/release/garoon2gs-intel.dmg"
+	@echo "Apple Silicon: dist/release/garoon2gs-apple_silicon.dmg"
+	@echo "==========================================="
 
 # Test release (no upload)
 .PHONY: release-test
