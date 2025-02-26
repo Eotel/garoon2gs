@@ -65,12 +65,54 @@ after:
   hooks:
     - cmd: |
         if [[ "${SKIP_NOTARIZATION}" != "true" && "{{.Env.APPLE_ID}}" != "" ]]; then
-          echo "macOSバイナリの公証を実行します..."
-          ditto -c -k --keepParent "{{ .ArtifactPath }}" "{{ .ArtifactPath }}.zip"
+          echo "macOSバイナリのアプリバンドル作成を開始します..."
+          
+          # アプリバンドル作成
+          mkdir -p "{{ .ArtifactPath }}.app/Contents/MacOS"
+          cp "{{ .ArtifactPath }}" "{{ .ArtifactPath }}.app/Contents/MacOS/garoon2gs"
+          
+          # Info.plist作成
+          cat > "{{ .ArtifactPath }}.app/Contents/Info.plist" << EOF
+        <?xml version="1.0" encoding="UTF-8"?>
+        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+        <plist version="1.0">
+        <dict>
+          <key>CFBundleExecutable</key>
+          <string>garoon2gs</string>
+          <key>CFBundleIdentifier</key>
+          <string>com.eotel.garoon2gs</string>
+          <key>CFBundleName</key>
+          <string>Garoon2GS</string>
+          <key>CFBundleVersion</key>
+          <string>{{.Version}}</string>
+          <key>CFBundleShortVersionString</key>
+          <string>{{.Version}}</string>
+        </dict>
+        </plist>
+        EOF
+          
+          # アプリバンドルに署名
+          codesign -s "Developer ID Application: {{ .Env.APPLE_DEVELOPER_ID }}" --force --timestamp --options runtime -v "{{ .ArtifactPath }}.app"
+          
+          # 公証用のアーカイブ作成
+          ditto -c -k --keepParent "{{ .ArtifactPath }}.app" "{{ .ArtifactPath }}.zip"
+          
+          # 公証サービスに送信
+          echo "公証サービスに送信中..."
           xcrun notarytool submit "{{ .ArtifactPath }}.zip" --apple-id {{ .Env.APPLE_ID }} \
             --password {{ .Env.APPLE_APP_PWD }} --team-id {{ .Env.APPLE_TEAM_ID }} --wait
-          xcrun stapler staple "{{ .ArtifactPath }}"
-          rm -f "{{ .ArtifactPath }}.zip"
+          
+          # 公証チケットを添付
+          echo "公証チケットを添付中..."
+          xcrun stapler staple "{{ .ArtifactPath }}.app"
+          
+          # 公証済みバイナリをオリジナルの場所に復元
+          cp "{{ .ArtifactPath }}.app/Contents/MacOS/garoon2gs" "{{ .ArtifactPath }}_notarized"
+          mv "{{ .ArtifactPath }}_notarized" "{{ .ArtifactPath }}"
+          
+          # 一時ファイル削除
+          rm -rf "{{ .ArtifactPath }}.app" "{{ .ArtifactPath }}.zip"
+          
           echo "公証と添付が完了しました"
         else
           echo "公証をスキップしました"
