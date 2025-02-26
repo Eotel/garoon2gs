@@ -191,8 +191,6 @@ func columnIndexToName(index int) string {
 }
 
 // WriteSchedule は指定されたシートにスケジュールを書き込みます
-// schedule_writer.go の WriteSchedule 関数を修正
-// schedule_writer.go の WriteSchedule 関数を修正
 func (w *ScheduleWriter) WriteSchedule(srv *sheets.Service, spreadsheetID, sheetName string, monthlyEvents map[int][]client.Event) error {
 	// まずヘッダー行から名前の列を特定
 	headerRange := fmt.Sprintf("%s!%d:%d", sheetName, w.headerRow, w.headerRow)
@@ -228,6 +226,23 @@ func (w *ScheduleWriter) WriteSchedule(srv *sheets.Service, spreadsheetID, sheet
 		return fmt.Errorf("failed to read date column: %v", err)
 	}
 
+	// 現在の日付を取得
+	now := time.Now()
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.Local)
+
+	// シートマッパーを取得して、シート名から年月を取得
+	sheetMapper, err := NewSheetMapper()
+	if err != nil {
+		return fmt.Errorf("failed to create sheet mapper: %v", err)
+	}
+	
+	sheetMonth := sheetMapper.GetMonthFromSheetName(sheetName)
+	if sheetMonth == nil {
+		return fmt.Errorf("failed to determine month for sheet: %s", sheetName)
+	}
+	
+	log.Printf("Sheet %s corresponds to month: %s", sheetName, sheetMonth.Format("2006-01"))
+
 	// 更新内容を準備
 	var updates []*sheets.ValueRange
 
@@ -253,6 +268,15 @@ func (w *ScheduleWriter) WriteSchedule(srv *sheets.Service, spreadsheetID, sheet
 		}
 
 		if day <= 0 {
+			continue
+		}
+
+		// このシートのこの日の日付を計算
+		cellDate := time.Date(sheetMonth.Year(), sheetMonth.Month(), day, 0, 0, 0, 0, time.Local)
+		
+		// 過去の日付はスキップ
+		if cellDate.Before(today) {
+			log.Printf("Skipping past date: %s (before today: %s)", cellDate.Format("2006-01-02"), today.Format("2006-01-02"))
 			continue
 		}
 
@@ -289,6 +313,8 @@ func (w *ScheduleWriter) WriteSchedule(srv *sheets.Service, spreadsheetID, sheet
 			return fmt.Errorf("failed to update values: %v", err)
 		}
 		log.Printf("Successfully wrote updates to sheet %s", sheetName)
+	} else {
+		log.Printf("No updates to write for sheet %s (all dates are in the past)", sheetName)
 	}
 
 	return nil

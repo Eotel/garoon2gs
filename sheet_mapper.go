@@ -98,3 +98,16 @@ func (sm *SheetMapper) GetSheetName(date time.Time) *string {
 	log.Printf("Skipping event for %s: no sheet mapping found", date.Format("2006-01"))
 	return nil
 }
+
+// GetMonthFromSheetName はシート名から対応する年月を返します
+// マッピングが存在しない場合はnilを返します
+func (sm *SheetMapper) GetMonthFromSheetName(sheetName string) *time.Time {
+	for _, m := range sm.mappings {
+		if m.SheetName == sheetName {
+			return &m.Month
+		}
+	}
+	
+	log.Printf("No month mapping found for sheet: %s", sheetName)
+	return nil
+}
