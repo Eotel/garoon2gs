@@ -35,11 +35,16 @@ archives:
       {{- if eq .Os "darwin" }}macos{{ else }}{{ .Os }}{{ end }}_
       {{- .Arch }}
     files:
-      - README.md
-      - LICENSE
-      - .env.sample
-      - sheet_mapping.csv
-      - user_mapping.csv
+      - src: README.md
+        dst: README.md
+      - src: LICENSE
+        dst: LICENSE
+      - src: .env.sample
+        dst: .env.sample
+      - src: sheet_mapping.csv
+        dst: sheet_mapping.csv
+      - src: user_mapping.csv
+        dst: user_mapping.csv
 
 checksum:
   name_template: '{{ .ProjectName }}_{{ .Version }}_checksums.txt'
