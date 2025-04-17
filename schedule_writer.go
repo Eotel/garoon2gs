@@ -40,10 +40,10 @@ func NewScheduleWriter() (*ScheduleWriter, error) {
 		return nil, fmt.Errorf("DATE_COL environment variable is not set")
 	}
 
-	name := os.Getenv("NAME")
-	if name == "" {
-		return nil, fmt.Errorf("NAME environment variable is not set")
-	}
+	// name := os.Getenv("NAME")
+	// if name == "" {
+	// 	return nil, fmt.Errorf("NAME environment variable is not set")
+	// }
 
 	// 新しい環境変数の読み込み
 	var holidayMenus []string
@@ -68,7 +68,7 @@ func NewScheduleWriter() (*ScheduleWriter, error) {
 	return &ScheduleWriter{
 		headerRow:    headerRow,
 		dateCol:      dateCol,
-		name:         name,
+		name:         "", // SaveToSheet()で設定されるため空文字で初期化
 		holidayMenus: holidayMenus,
 		outingMenus:  outingMenus,
 		normalPlace:  normalPlace,

@@ -58,6 +58,7 @@ SHEET_MAPPING_PATH="sheet_mapping.csv"
 HEADER_ROW=7
 DATE_COL=A
 USER_MAPPING_PATH="user_mapping.csv"
+# NAME環境変数は不要（ユーザーマッピングから自動的に取得されます）
 ```
 
 2. `sheet_mapping.csv`でシート名のマッピングを設定：
