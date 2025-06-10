@@ -1,0 +1,15 @@
+name: Key Dependencies
+description: |
+  Important external dependencies used in the Garoon2GS project
+rules:
+  - description: Environment Management
+    explanation: |
+      `github.com/joho/godotenv`: For loading environment variables from .env files
+  
+  - description: Certificate Handling
+    explanation: |
+      `golang.org/x/crypto/pkcs12`: For handling certificates
+  
+  - description: Google Sheets API
+    explanation: |
+      `google.golang.org/api/sheets/v4`: For interacting with Google Sheets
