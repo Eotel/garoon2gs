@@ -19,6 +19,7 @@ Garoon2GSは、サイボウズGaroonのスケジュールデータをGoogle Shee
 ### [開発者向けドキュメント](./development/)
 
 - [TODO](./development/TODO.md) - 既知の問題と修正提案
+- [Makefileガイド](./development/makefile.md) - Makefileの使い方と詳細説明
 
 ## 🚀 クイックスタート
 

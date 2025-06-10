@@ -9,26 +9,31 @@ Garoon2GSの開発に関する情報をまとめています。
 - [開発環境セットアップ](./setup.md) - 開発環境の構築方法
 - [テストガイド](./testing.md) - テストの書き方と実行方法
 - [リリースプロセス](./release.md) - リリース手順
+- [Makefileガイド](./makefile.md) - Makefileの使い方と詳細説明
 
 ## 🛠️ 開発の始め方
 
 1. リポジトリをクローン
+
    ```bash
    git clone https://github.com/Eotel/garoon2gs.git
    cd garoon2gs
    ```
 
 2. 依存関係のインストール
+
    ```bash
    go mod download
    ```
 
 3. Git hooksのセットアップ
+
    ```bash
    ./scripts/install-hooks.sh
    ```
 
 4. テストの実行
+
    ```bash
    go test ./...
    ```
