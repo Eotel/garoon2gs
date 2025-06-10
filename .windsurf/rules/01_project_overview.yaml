@@ -1,0 +1,37 @@
+name: Project Overview
+description: |
+  Overview of the Garoon2GS project structure and architecture
+rules:
+  - description: Project Overview
+    explanation: |
+      Garoon2GS synchronizes schedules from Cybozu Garoon to Google Sheets, tracking employee 
+      attendance and work locations. It fetches events from Garoon's REST API and updates 
+      spreadsheets based on configurable mappings.
+  
+  - description: Core Flow
+    explanation: |
+      1. `garoon2gs.go` loads environment configuration and user mappings
+      2. For each user, it fetches events from Garoon API (`internal/client`)
+      3. Events are categorized (normal/holiday/outing) based on menu types
+      4. Results are written to Google Sheets using date-to-sheet mappings
+  
+  - description: Key Components
+    explanation: |
+      - **internal/client**: Garoon API client with authentication and pagination
+      - **internal/mapping**: CSV-based user-to-column mapping loader
+      - **schedule_writer.go**: Core logic for determining work status and updating sheets
+      - **sheet_mapper.go**: Maps dates to sheet names (monthly organization)
+      - **users/, organizations/**: Domain packages for Garoon entities
+
+  - description: Configuration Strategy
+    explanation: |
+      - Primary: Environment variables loaded from `.env` files
+      - Secondary: CSV files for user and sheet mappings
+      - Configuration directory: Executable location or current directory
+      - Required: Garoon credentials, Google service account, spreadsheet ID
+
+  - description: Project Structure
+    explanation: |
+      - `/cmd` - Command executables
+      - `/internal` - Internal packages
+      - `/users`, `/organizations` - Domain-specific packages

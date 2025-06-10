@@ -1,0 +1,19 @@
+name: Testing Patterns
+description: |
+  Guidelines for writing tests in the Garoon2GS project
+rules:
+  - description: Table-Driven Tests
+    explanation: |
+      Use table-driven tests with `testCases` structure
+  
+  - description: Environment Variables in Tests
+    explanation: |
+      Mock environment variables using `t.Setenv()`
+  
+  - description: Test Coverage
+    explanation: |
+      Test both success and error cases
+  
+  - description: Test Naming
+    explanation: |
+      Use descriptive test names in Japanese when testing user-facing features

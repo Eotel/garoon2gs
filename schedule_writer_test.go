@@ -47,7 +47,7 @@ func TestScheduleWriter(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create ScheduleWriter: %v", err)
 	}
-	
+
 	writer.name = "伊藤"
 
 	// テストのために名前の列を設定
@@ -119,7 +119,7 @@ func TestDetermineEventStatus(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create ScheduleWriter: %v", err)
 	}
-	
+
 	writer.name = "伊藤"
 
 	// holidayMenusを設定
@@ -183,7 +183,7 @@ func TestFindNameColumn(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create ScheduleWriter: %v", err)
 	}
-	
+
 	writer.name = "伊藤"
 
 	tests := []struct {

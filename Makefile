@@ -216,6 +216,47 @@ clean:
 dev: fmt lint test build
 	@echo "Development cycle completed"
 
+# Build list_organizations
+.PHONY: build-list-organizations
+build-list-organizations:
+	go build ${LDFLAGS} -o list_organizations ./cmd/list_organizations
+
+# Build list_users
+.PHONY: build-list-users
+build-list-users:
+	go build ${LDFLAGS} -o list_users ./cmd/list_users
+
+# Build all tools
+.PHONY: build-tools
+build-tools: build-list-organizations build-list-users
+
+# Build everything (main app and tools)
+.PHONY: build-all-with-tools
+build-all-with-tools: build build-tools
+
+# Cross compile with tools
+.PHONY: build-all-tools
+build-all-tools:
+	# MacOS (Intel)
+	GOOS=darwin GOARCH=amd64 go build ${LDFLAGS} -o dist/${BINARY_NAME}_macos_amd64 .
+	GOOS=darwin GOARCH=amd64 go build ${LDFLAGS} -o dist/list_organizations_macos_amd64 ./cmd/list_organizations
+	GOOS=darwin GOARCH=amd64 go build ${LDFLAGS} -o dist/list_users_macos_amd64 ./cmd/list_users
+	
+	# MacOS (Apple Silicon)
+	GOOS=darwin GOARCH=arm64 go build ${LDFLAGS} -o dist/${BINARY_NAME}_macos_arm64 .
+	GOOS=darwin GOARCH=arm64 go build ${LDFLAGS} -o dist/list_organizations_macos_arm64 ./cmd/list_organizations
+	GOOS=darwin GOARCH=arm64 go build ${LDFLAGS} -o dist/list_users_macos_arm64 ./cmd/list_users
+	
+	# Linux
+	GOOS=linux GOARCH=amd64 go build ${LDFLAGS} -o dist/${BINARY_NAME}_linux_amd64 .
+	GOOS=linux GOARCH=amd64 go build ${LDFLAGS} -o dist/list_organizations_linux_amd64 ./cmd/list_organizations
+	GOOS=linux GOARCH=amd64 go build ${LDFLAGS} -o dist/list_users_linux_amd64 ./cmd/list_users
+	
+	# Windows
+	GOOS=windows GOARCH=amd64 go build ${LDFLAGS} -o dist/${BINARY_NAME}_windows_amd64.exe .
+	GOOS=windows GOARCH=amd64 go build ${LDFLAGS} -o dist/list_organizations_windows_amd64.exe ./cmd/list_organizations
+	GOOS=windows GOARCH=amd64 go build ${LDFLAGS} -o dist/list_users_windows_amd64.exe ./cmd/list_users
+
 # Help
 .PHONY: help
 help:
@@ -223,7 +264,12 @@ help:
 	@echo ""
 	@echo "Available targets:"
 	@echo "  build         - Build binary for current platform"
+	@echo "  build-list-organizations - Build list_organizations tool"
+	@echo "  build-list-users - Build list_users tool"
+	@echo "  build-tools   - Build all tools (list_organizations, list_users)"
+	@echo "  build-all-with-tools - Build main app and all tools"
 	@echo "  build-all     - Build binaries for all platforms"
+	@echo "  build-all-tools - Build binaries and tools for all platforms"
 	@echo "  sign-macos    - Sign macOS binaries"
 	@echo "  release       - Build, sign and notarize full release (requires Apple Developer ID)"
 	@echo "  release-unsigned - Create unsigned release packages"

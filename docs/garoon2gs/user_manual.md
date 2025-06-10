@@ -1,6 +1,7 @@
 # Garoon2GS ユーザーマニュアル
 
 ## 目次
+
 1. [概要](#概要)
 2. [前提条件](#前提条件)
 3. [インストール方法](#インストール方法)
@@ -226,16 +227,19 @@ Garoon2GSは、Garoon REST APIを使用してスケジュールデータを取�
 Garoon2GSでは、主に以下のAPIエンドポイントを使用しています：
 
 1. **スケジュール取得**
+
    ```
    GET /api/v1/schedule/events?rangeStart={start}&rangeEnd={end}&target={user_id}
    ```
 
 2. **ユーザー情報取得**
+
    ```
    GET /api/v1/base/users?offset={offset}&limit={limit}
    ```
 
 3. **組織情報取得**
+
    ```
    GET /api/v1/base/organizations?offset={offset}&limit={limit}
    ```

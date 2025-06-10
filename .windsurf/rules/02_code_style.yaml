@@ -1,0 +1,38 @@
+name: Code Style Guidelines
+description: |
+  Guidelines for writing consistent code in the Garoon2GS project
+rules:
+  - description: Import Organization
+    explanation: |
+      Standard library first, then third-party packages, then local packages
+  
+  - description: Error Handling
+    explanation: |
+      Use detailed error messages with `fmt.Errorf` and context
+  
+  - description: Comments
+    explanation: |
+      Use Japanese for user-facing documentation, English for code internals
+  
+  - description: File Structure
+    explanation: |
+      Package main for executables, internal packages for implementation
+  
+  - description: Naming Conventions
+    explanation: |
+      - CamelCase for exported names
+      - camelCase for internal names
+      - Use Japanese names where appropriate
+      - Error messages in Japanese for end users, English for development
+  
+  - description: Configuration
+    explanation: |
+      Use environment variables for configuration
+  
+  - description: Optional Values
+    explanation: |
+      Use pointers for optional values
+  
+  - description: Testing Pattern
+    explanation: |
+      Use test table pattern with descriptive test case names
