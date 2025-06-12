@@ -5,15 +5,16 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"log"
+	"os"
+	"path/filepath"
+	"time"
+
 	"github.com/eotel/garoon2gs/internal/client"
 	"github.com/eotel/garoon2gs/internal/mapping"
 	"github.com/joho/godotenv"
 	"google.golang.org/api/option"
 	"google.golang.org/api/sheets/v4"
-	"log"
-	"os"
-	"path/filepath"
-	"time"
 )
 
 // Version information (set during build)
@@ -170,32 +171,56 @@ func SaveToSheet(srv *sheets.Service, spreadsheetID string, events []client.Even
 	writer.holidayMenus = holidayMenus
 	writer.name = userName // ユーザー名を設定
 
+	// シートマッパーをループ外で一度だけ生成
+	sheetMapper, err := NewSheetMapper()
+	if err != nil {
+		return fmt.Errorf("sheet mapperの作成に失敗しました: %v", err)
+	}
+
 	// イベントを日付でグループ化
 	eventsByDate := make(map[string]map[int][]client.Event)
 	for _, e := range events {
-		eventTime, err := time.Parse(time.RFC3339, e.Start.DateTime)
+		startTime, err := time.Parse(time.RFC3339, e.Start.DateTime)
 		if err != nil {
-			log.Printf("イベントの日時解析に失敗しました: %v", err)
+			log.Printf("イベントの開始日時解析に失敗しました: %v", err)
 			continue
 		}
 
-		// シート名を取得
-		sheetMapper, err := NewSheetMapper()
+		endTime, err := time.Parse(time.RFC3339, e.End.DateTime)
 		if err != nil {
-			return fmt.Errorf("sheet mapperの作成に失敗しました: %v", err)
-		}
-
-		targetSheet := sheetMapper.GetSheetName(eventTime)
-		if targetSheet == nil {
+			log.Printf("イベントの終了日時解析に失敗しました: %v", err)
 			continue
 		}
 
-		if eventsByDate[*targetSheet] == nil {
-			eventsByDate[*targetSheet] = make(map[int][]client.Event)
-		}
+		// 日付範囲で繰り返し処理（終了日の前日まで）
+		currentDate := startTime
+		for currentDate.Before(endTime) || currentDate.Equal(startTime) {
+			// シート名を取得
+			targetSheet := sheetMapper.GetSheetName(currentDate)
+			if targetSheet == nil {
+				// 次の日に進む
+				currentDate = currentDate.AddDate(0, 0, 1)
+				continue
+			}
 
-		day := eventTime.Day()
-		eventsByDate[*targetSheet][day] = append(eventsByDate[*targetSheet][day], e)
+			if eventsByDate[*targetSheet] == nil {
+				eventsByDate[*targetSheet] = make(map[int][]client.Event)
+			}
+
+			day := currentDate.Day()
+			eventsByDate[*targetSheet][day] = append(eventsByDate[*targetSheet][day], e)
+
+			// 次の日に進む（終了日も含める場合は次の条件を調整）
+			nextDate := currentDate.AddDate(0, 0, 1)
+
+			// 日付が変わったが、同じ日の23:59までのイベントなら終了
+			if nextDate.Day() != currentDate.Day() && endTime.Day() == currentDate.Day() &&
+				endTime.Hour() == 23 && endTime.Minute() == 59 {
+				break
+			}
+
+			currentDate = nextDate
+		}
 	}
 
 	// シートごとに書き込み
