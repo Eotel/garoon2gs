@@ -65,6 +65,40 @@ func (c *GaroonClient) GetPassword() string {
 	return c.config.Password
 }
 
+func (c *GaroonClient) GetConfigDir() string {
+	return c.config.ConfigDir
+}
+
+func (c *Config) HasClientCertificate() bool {
+	return c.CertPath != "" && c.CertPassword != ""
+}
+
+func (c *Config) Validate() error {
+	required := map[string]string{
+		"GAROON_BASE_URL": c.BaseURL,
+		"GAROON_USERNAME": c.Username,
+		"GAROON_PASSWORD": c.Password,
+	}
+
+	var missingVars []string
+	for key, value := range required {
+		if value == "" {
+			missingVars = append(missingVars, key)
+		}
+	}
+	if len(missingVars) > 0 {
+		return fmt.Errorf("Garoon接続に必要な環境変数が設定されていません: %v", missingVars)
+	}
+
+	certPathSet := c.CertPath != ""
+	certPasswordSet := c.CertPassword != ""
+	if certPathSet != certPasswordSet {
+		return fmt.Errorf("クライアント証明書を使う場合は CLIENT_CERT_PATH と CLIENT_CERT_PASSWORD の両方を設定してください")
+	}
+
+	return nil
+}
+
 func GetConfigDir() (string, error) {
 	// まず実行ファイルのディレクトリを試す
 	if exePath, err := os.Executable(); err == nil {
@@ -84,30 +118,9 @@ func GetConfigDir() (string, error) {
 	return os.Getwd()
 }
 
-// getConfigDir は設定ファイルのディレクトリを取得します
-func getConfigDir() (string, error) {
-	// まず実行ファイルのディレクトリを試す
-	if exePath, err := os.Executable(); err == nil {
-		dir := filepath.Dir(exePath)
-		if _, err := os.Stat(filepath.Join(dir, ".env")); err == nil {
-			return dir, nil
-		}
-	}
-
-	// 次にカレントディレクトリを試す
-	if pwd, err := os.Getwd(); err == nil {
-		if _, err := os.Stat(filepath.Join(pwd, ".env")); err == nil {
-			return pwd, nil
-		}
-	}
-
-	// 最後にカレントディレクトリを返す（.envが見つからなくても）
-	return os.Getwd()
-}
-
 // LoadConfig は環境変数から設定を読み込みます
 func LoadConfig() (*Config, error) {
-	configDir, err := getConfigDir()
+	configDir, err := GetConfigDir()
 	if err != nil {
 		return nil, fmt.Errorf("設定ディレクトリの取得に失敗しました: %v", err)
 	}
@@ -121,16 +134,36 @@ func LoadConfig() (*Config, error) {
 		BaseURL:      os.Getenv("GAROON_BASE_URL"),
 		Username:     os.Getenv("GAROON_USERNAME"),
 		Password:     os.Getenv("GAROON_PASSWORD"),
-		CertPath:     filepath.Join(configDir, os.Getenv("CLIENT_CERT_PATH")),
+		CertPath:     resolveOptionalPath(configDir, os.Getenv("CLIENT_CERT_PATH")),
 		CertPassword: os.Getenv("CLIENT_CERT_PASSWORD"),
 	}, nil
+}
+
+func LoadConfiguredClient() (*GaroonClient, error) {
+	config, err := LoadConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	if err := config.Validate(); err != nil {
+		return nil, err
+	}
+
+	return NewClient(config)
+}
+
+func resolveOptionalPath(baseDir, fileName string) string {
+	if fileName == "" {
+		return ""
+	}
+	return filepath.Join(baseDir, fileName)
 }
 
 // NewClient は新しいGaroonClientインスタンスを作成します
 func NewClient(config *Config) (*GaroonClient, error) {
 	var httpClient *http.Client
 
-	if config.CertPath != "" && config.CertPassword != "" {
+	if config.HasClientCertificate() {
 		pfxData, err := os.ReadFile(config.CertPath)
 		if err != nil {
 			return nil, fmt.Errorf("証明書の読み込みに失敗しました: %v", err)

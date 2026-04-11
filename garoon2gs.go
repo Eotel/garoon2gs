@@ -12,7 +12,6 @@ import (
 
 	"github.com/eotel/garoon2gs/internal/client"
 	"github.com/eotel/garoon2gs/internal/mapping"
-	"github.com/joho/godotenv"
 	"google.golang.org/api/option"
 	"google.golang.org/api/sheets/v4"
 )
@@ -35,31 +34,18 @@ func main() {
 		return
 	}
 
-	configDir, err := client.GetConfigDir()
-	if err != nil {
-		log.Fatal("設定ディレクトリの取得に失敗しました:", err)
-	}
-
-	if err := godotenv.Load(filepath.Join(configDir, ".env")); err != nil {
-		log.Println("Warning: .env ファイルが見つかりませんでした。")
-	}
-
 	// 必須の環境変数を検証
-	if err := validateRequiredEnv(); err != nil {
-		log.Fatal(err)
-	}
-
-	// クライアントの設定を読み込み
-	config, err := client.LoadConfig()
-	if err != nil {
-		log.Fatal("設定の読み込みに失敗しました:", err)
-	}
-
 	// Garoonクライアントの初期化
-	garoonClient, err := client.NewClient(config)
+	garoonClient, err := client.LoadConfiguredClient()
 	if err != nil {
 		log.Fatal("Garoonクライアントの初期化に失敗しました:", err)
 	}
+
+	if err := validateAppEnv(); err != nil {
+		log.Fatal(err)
+	}
+
+	configDir := garoonClient.GetConfigDir()
 
 	// ユーザーマッピングの読み込み
 	userMappings, err := mapping.LoadUserMapping(configDir)
@@ -111,12 +97,9 @@ func main() {
 	}
 }
 
-// validateRequiredEnv は必須の環境変数を検証します
-func validateRequiredEnv() error {
+// validateAppEnv はアプリケーション固有の必須環境変数を検証します
+func validateAppEnv() error {
 	required := map[string]string{
-		"GAROON_BASE_URL":             os.Getenv("GAROON_BASE_URL"),
-		"GAROON_USERNAME":             os.Getenv("GAROON_USERNAME"),
-		"GAROON_PASSWORD":             os.Getenv("GAROON_PASSWORD"),
 		"SPREADSHEET_ID":              os.Getenv("SPREADSHEET_ID"),
 		"GOOGLE_SERVICE_ACCOUNT_FILE": os.Getenv("GOOGLE_SERVICE_ACCOUNT_FILE"),
 		"USER_MAPPING_PATH":           os.Getenv("USER_MAPPING_PATH"),
