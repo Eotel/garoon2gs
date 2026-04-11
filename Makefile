@@ -205,6 +205,11 @@ lint:
 fmt:
 	go fmt ./...
 
+# Install git hooks
+.PHONY: install-hooks
+install-hooks:
+	./scripts/install-hooks.sh
+
 # Cleanup
 .PHONY: clean
 clean:
