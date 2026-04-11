@@ -54,6 +54,7 @@ go mod verify
 
 これにより以下のhooksが設定されます：
 - `pre-commit`: コードフォーマットとlintチェック
+- `pre-push`: コードフォーマット、lint、テストチェック
 
 ### 5. 開発用ツールのインストール
 
@@ -71,10 +72,10 @@ curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/insta
 
 ```bash
 # サンプルファイルをコピー
-cp .env.sample .env.development
+cp .env.sample .env
 
 # 開発用の設定を編集
-vim .env.development
+vim .env
 ```
 
 開発用の`.env`設定例：
@@ -89,9 +90,6 @@ GAROON_PASSWORD="testpass"
 SPREADSHEET_ID="test-spreadsheet-id"
 GOOGLE_SERVICE_ACCOUNT_FILE="test-service-account.json"
 
-# デバッグ設定
-DEBUG=true
-LOG_LEVEL=debug
 ```
 
 ### 2. テスト用マッピングファイル
@@ -99,14 +97,16 @@ LOG_LEVEL=debug
 ```bash
 # テスト用ユーザーマッピング
 cat > user_mapping_test.csv << EOF
+user_id,name
 1,テストユーザー1
 2,テストユーザー2
 EOF
 
 # テスト用シートマッピング
 cat > sheet_mapping_test.csv << EOF
-2025,1,2025年1月
-2025,2,2025年2月
+month,sheet_name
+2025-01,2025年1月
+2025-02,2025年2月
 EOF
 ```
 
@@ -160,7 +160,7 @@ EOF
       "request": "launch",
       "mode": "auto",
       "program": "${workspaceFolder}",
-      "envFile": "${workspaceFolder}/.env.development",
+      "envFile": "${workspaceFolder}/.env",
       "args": []
     },
     {
@@ -169,7 +169,7 @@ EOF
       "request": "launch",
       "mode": "auto",
       "program": "${workspaceFolder}/cmd/list_users",
-      "envFile": "${workspaceFolder}/.env.development"
+      "envFile": "${workspaceFolder}/.env"
     },
     {
       "name": "Debug Test",
@@ -254,8 +254,8 @@ make pre-commit
 # デバッグログを有効にして実行
 DEBUG=true ./garoon2gs
 
-# 特定のユーザーのみでテスト
-./garoon2gs --users 1
+# 特定の組織のユーザー一覧を確認
+./list_users --org 1
 ```
 
 ### 3. プロファイリング

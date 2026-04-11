@@ -17,9 +17,9 @@ Error: Failed to fetch events: 401 Unauthorized
    - `.env`ファイルの`GAROON_USERNAME`と`GAROON_PASSWORD`を確認
    - Garoonに直接ログインできるか確認
 
-2. **Basic認証が無効化されている**
-   - Garoon管理者に確認し、Basic認証を有効化してもらう
-   - またはクライアント証明書認証に切り替える
+2. **パスワード認証で使うGaroonログイン情報が不正**
+   - Garoon管理者にログイン名とパスワードを確認
+   - SAML や 2要素認証の制約がある場合は連携用ユーザーを検討
 
 3. **パスワードに特殊文字が含まれている**
    - パスワードをダブルクォートで囲む: `GAROON_PASSWORD="p@ssw0rd!"`

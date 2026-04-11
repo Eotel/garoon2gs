@@ -2,7 +2,7 @@
 
 ## 概要
 
-`list_users`は、Garoonに登録されているすべてのユーザー情報を取得して表示するコマンドラインツールです。ユーザーマッピングファイル（`user_mapping.csv`）の作成時に必要なユーザーIDと名前の確認に使用します。
+`list_users`は、Garoonに登録されているユーザー情報を取得して表示するコマンドラインツールです。ユーザーマッピングファイル（`user_mapping.csv`）の作成時に必要なユーザーIDと名前の確認に使用します。
 
 ## 使い方
 
@@ -10,6 +10,14 @@
 
 ```bash
 ./list_users
+```
+
+Garoon REST API のページングをたどって、取得できる全ユーザーを出力します。
+
+### 特定の組織に所属するユーザーのみ表示
+
+```bash
+./list_users --org 5
 ```
 
 ### 出力形式
@@ -40,15 +48,27 @@ user_mapping.csv形式で出力する場合：
 ./list_users | jq -r '.users[] | [.id, .name] | @csv' > user_mapping_draft.csv
 ```
 
+特定組織だけを `user_mapping.csv` 形式で出力する場合：
+
+```bash
+./list_users --org 5 | jq -r '.users[] | [.id, .name] | @csv' > user_mapping_draft.csv
+```
+
 ## 設定
 
-`list_users`は、メインツールと同じ`.env`ファイルを使用します。以下の環境変数が必要です：
+`list_users`は、メインツールと同じ`.env`ファイルを使用します。Garoon REST API の実行にはパスワード認証を使うため、以下の環境変数が必要です：
 
 - `GAROON_BASE_URL` - GaroonのベースURL
-- `GAROON_USERNAME` - Garoonのユーザー名（Basic認証の場合）
-- `GAROON_PASSWORD` - Garoonのパスワード（Basic認証の場合）
-- `CLIENT_CERT_PATH` - クライアント証明書のパス（証明書認証の場合）
-- `CLIENT_CERT_PASSWORD` - クライアント証明書のパスワード（証明書認証の場合）
+- `GAROON_USERNAME` - Garoonのユーザー名（パスワード認証）
+- `GAROON_PASSWORD` - Garoonのパスワード（パスワード認証）
+- `CLIENT_CERT_PATH` - クライアント証明書のパス（IPアドレス制限環境の場合）
+- `CLIENT_CERT_PASSWORD` - クライアント証明書のパスワード（IPアドレス制限環境の場合）
+
+## コマンドラインオプション
+
+| オプション | 説明 | デフォルト |
+|-----------|------|-----------|
+| `--org` | 特定の組織IDに所属するユーザーのみ表示 | なし |
 
 ## 実行例
 

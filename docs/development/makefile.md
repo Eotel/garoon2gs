@@ -167,7 +167,7 @@ make run
 
 #### `make install-hooks`
 
-Git pre-commit hooksをインストールします。
+Git の `pre-commit` / `pre-push` hooks をインストールします。
 
 ```bash
 make install-hooks
