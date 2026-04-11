@@ -14,9 +14,10 @@ func setupWriterTest(t *testing.T) func() {
 	// テスト用の環境変数を設定
 	originalEnv := map[string]string{}
 	envVars := map[string]string{
-		"HEADER_ROW": "7",
-		"DATE_COL":   "A",
-		"NAME":       "伊藤",
+		"HEADER_ROW":   "7",
+		"DATE_COL":     "A",
+		"NAME":         "伊藤",
+		"NORMAL_PLACE": "原宿",
 	}
 
 	// 既存の環境変数を保存し、テスト用の値を設定
@@ -125,7 +126,7 @@ func TestDetermineEventStatus(t *testing.T) {
 	// holidayMenusを設定
 	writer.holidayMenus = []string{"休暇", "週休"}
 	// normalPlaceを設定
-	writer.normalPlace = "渋谷"
+	writer.normalPlace = "原宿"
 
 	tests := []struct {
 		name          string
@@ -151,17 +152,17 @@ func TestDetermineEventStatus(t *testing.T) {
 			expectedValue: "週休",
 		},
 		{
-			name: "休暇も週休もない場合は渋谷",
+			name: "休暇も週休もない場合は通常勤務地",
 			events: []Event{
 				{EventMenu: "イベント"},
 				{EventMenu: "ミーティング"},
 			},
-			expectedValue: "渋谷",
+			expectedValue: "原宿",
 		},
 		{
-			name:          "イベントがない場合は渋谷",
+			name:          "イベントがない場合は通常勤務地",
 			events:        []Event{},
-			expectedValue: "渋谷",
+			expectedValue: "原宿",
 		},
 	}
 

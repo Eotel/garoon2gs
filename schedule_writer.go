@@ -152,7 +152,7 @@ func (w *ScheduleWriter) getCellPosition(date time.Time) (row int, col string, e
 func (w *ScheduleWriter) determineEventStatus(events []client.Event) string {
 	if len(events) == 0 {
 		// 予定がない場合は通常の勤務地を返す
-		return "渋谷"
+		return w.normalPlace
 	}
 
 	// 1. 休み判定が一つでもあるかチェック
@@ -173,8 +173,8 @@ func (w *ScheduleWriter) determineEventStatus(events []client.Event) string {
 		}
 	}
 
-	// 3. それ以外の場合は "渋谷" を返す
-	return "渋谷"
+	// 3. それ以外の場合は通常の勤務地を返す
+	return w.normalPlace
 }
 
 // columnIndexToName は0-based indexをA1記法の列名に変換します

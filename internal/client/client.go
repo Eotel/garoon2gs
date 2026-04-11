@@ -28,14 +28,16 @@ const (
 
 // Config はクライアントの設定を保持する構造体です
 type Config struct {
-	ConfigDir    string
-	BaseURL      string
-	AuthType     AuthType
-	Username     string
-	Password     string
-	BearerToken  string
-	CertPath     string
-	CertPassword string
+	ConfigDir       string
+	BaseURL         string
+	AuthType        AuthType
+	Username        string
+	Password        string
+	BearerToken     string
+	CertPath        string
+	CertPathSet     bool
+	CertPassword    string
+	CertPasswordSet bool
 }
 
 // GaroonClient はGaroon APIクライアントを表す構造体です
@@ -95,7 +97,7 @@ func (c *Config) EffectiveAuthType() AuthType {
 }
 
 func (c *Config) HasClientCertificate() bool {
-	return c.CertPath != "" && c.CertPassword != ""
+	return c.CertPathSet && c.CertPasswordSet
 }
 
 func (c *Config) Validate() error {
@@ -130,10 +132,11 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("Garoon接続に必要な環境変数が設定されていません: %v", missingVars)
 	}
 
-	certPathSet := c.CertPath != ""
-	certPasswordSet := c.CertPassword != ""
-	if certPathSet != certPasswordSet {
+	if c.CertPathSet != c.CertPasswordSet {
 		return fmt.Errorf("クライアント証明書を使う場合は CLIENT_CERT_PATH と CLIENT_CERT_PASSWORD の両方を設定してください")
+	}
+	if c.CertPathSet && strings.TrimSpace(c.CertPath) == "" {
+		return fmt.Errorf("CLIENT_CERT_PATH が空です")
 	}
 
 	return nil
@@ -158,6 +161,14 @@ func GetConfigDir() (string, error) {
 	return os.Getwd()
 }
 
+func lookupConfigValue(fileValues map[string]string, hasEnvFile bool, key string) (string, bool) {
+	if hasEnvFile {
+		value, ok := fileValues[key]
+		return value, ok
+	}
+	return os.LookupEnv(key)
+}
+
 // LoadConfig は環境変数から設定を読み込みます
 func LoadConfig() (*Config, error) {
 	configDir, err := GetConfigDir()
@@ -165,19 +176,36 @@ func LoadConfig() (*Config, error) {
 		return nil, fmt.Errorf("設定ディレクトリの取得に失敗しました: %v", err)
 	}
 
-	if err := godotenv.Load(filepath.Join(configDir, ".env")); err != nil {
+	envFilePath := filepath.Join(configDir, ".env")
+	if err := godotenv.Load(envFilePath); err != nil {
 		log.Println("Warning: .env ファイルが見つかりませんでした")
 	}
 
+	fileValues, err := godotenv.Read(envFilePath)
+	hasEnvFile := err == nil
+	if err != nil && !os.IsNotExist(err) {
+		return nil, fmt.Errorf(".env ファイルの読み込みに失敗しました: %v", err)
+	}
+
+	baseURL, _ := lookupConfigValue(fileValues, hasEnvFile, "GAROON_BASE_URL")
+	authType, _ := lookupConfigValue(fileValues, hasEnvFile, "GAROON_AUTH_TYPE")
+	username, _ := lookupConfigValue(fileValues, hasEnvFile, "GAROON_USERNAME")
+	password, _ := lookupConfigValue(fileValues, hasEnvFile, "GAROON_PASSWORD")
+	bearerToken, _ := lookupConfigValue(fileValues, hasEnvFile, "GAROON_BEARER_TOKEN")
+	certPath, certPathSet := lookupConfigValue(fileValues, hasEnvFile, "CLIENT_CERT_PATH")
+	certPassword, certPasswordSet := lookupConfigValue(fileValues, hasEnvFile, "CLIENT_CERT_PASSWORD")
+
 	return &Config{
-		ConfigDir:    configDir,
-		BaseURL:      os.Getenv("GAROON_BASE_URL"),
-		AuthType:     normalizeAuthType(os.Getenv("GAROON_AUTH_TYPE")),
-		Username:     os.Getenv("GAROON_USERNAME"),
-		Password:     os.Getenv("GAROON_PASSWORD"),
-		BearerToken:  os.Getenv("GAROON_BEARER_TOKEN"),
-		CertPath:     resolveOptionalPath(configDir, os.Getenv("CLIENT_CERT_PATH")),
-		CertPassword: os.Getenv("CLIENT_CERT_PASSWORD"),
+		ConfigDir:       configDir,
+		BaseURL:         baseURL,
+		AuthType:        normalizeAuthType(authType),
+		Username:        username,
+		Password:        password,
+		BearerToken:     bearerToken,
+		CertPath:        resolveOptionalPath(configDir, certPath),
+		CertPathSet:     certPathSet,
+		CertPassword:    certPassword,
+		CertPasswordSet: certPasswordSet,
 	}, nil
 }
 
