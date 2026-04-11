@@ -2,10 +2,32 @@ package users
 
 import (
 	"encoding/json"
+	"github.com/eotel/garoon2gs/internal/client"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 )
+
+func newTestGaroonClient(t *testing.T, baseURL string, authType client.AuthType) *client.GaroonClient {
+	t.Helper()
+
+	cfg := &client.Config{BaseURL: baseURL}
+	switch authType {
+	case client.AuthTypeOAuth:
+		cfg.AuthType = client.AuthTypeOAuth
+		cfg.BearerToken = "token"
+	default:
+		cfg.Username = "user"
+		cfg.Password = "pass"
+	}
+
+	garoonClient, err := client.NewClient(cfg)
+	if err != nil {
+		t.Fatalf("NewClient returned error: %v", err)
+	}
+
+	return garoonClient
+}
 
 func TestListUsersPaginatesAllUsers(t *testing.T) {
 	t.Helper()
@@ -44,7 +66,7 @@ func TestListUsersPaginatesAllUsers(t *testing.T) {
 	}))
 	defer server.Close()
 
-	users, err := ListUsers(server.Client(), server.URL, "user", "pass")
+	users, err := ListUsers(newTestGaroonClient(t, server.URL, client.AuthTypePassword))
 	if err != nil {
 		t.Fatalf("ListUsers returned error: %v", err)
 	}
@@ -77,12 +99,34 @@ func TestListUsersByOrganizationUsesOrganizationEndpoint(t *testing.T) {
 	}))
 	defer server.Close()
 
-	users, err := ListUsersByOrganization(server.Client(), server.URL, "user", "pass", "42")
+	users, err := ListUsersByOrganization(newTestGaroonClient(t, server.URL, client.AuthTypePassword), "42")
 	if err != nil {
 		t.Fatalf("ListUsersByOrganization returned error: %v", err)
 	}
 
 	if len(users) != 1 || users[0].ID != "10" {
 		t.Fatalf("users = %+v, want one user with ID 10", users)
+	}
+}
+
+func TestListUsersUsesBearerTokenForOAuth(t *testing.T) {
+	t.Helper()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if got := r.Header.Get("Authorization"); got != "Bearer token" {
+			t.Fatalf("Authorization = %q, want %q", got, "Bearer token")
+		}
+		if got := r.Header.Get("X-Cybozu-Authorization"); got != "" {
+			t.Fatalf("X-Cybozu-Authorization = %q, want empty", got)
+		}
+
+		if err := json.NewEncoder(w).Encode(listUsersResponse{HasNext: false}); err != nil {
+			t.Fatalf("failed to encode response: %v", err)
+		}
+	}))
+	defer server.Close()
+
+	if _, err := ListUsers(newTestGaroonClient(t, server.URL, client.AuthTypeOAuth)); err != nil {
+		t.Fatalf("ListUsers returned error: %v", err)
 	}
 }

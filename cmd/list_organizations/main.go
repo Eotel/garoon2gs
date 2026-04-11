@@ -12,12 +12,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	orgs, err := organizations.ListOrganizations(
-		garoonClient.GetHTTPClient(),
-		garoonClient.GetBaseURL(),
-		garoonClient.GetUsername(),
-		garoonClient.GetPassword(),
-	)
+	orgs, err := organizations.ListOrganizations(garoonClient)
 	if err != nil {
 		log.Fatal("組織一覧の取得に失敗しました:", err)
 	}

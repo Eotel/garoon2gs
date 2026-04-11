@@ -19,23 +19,12 @@ func main() {
 
 	var userList []users.User
 	if orgID != "" {
-		userList, err = users.ListUsersByOrganization(
-			garoonClient.GetHTTPClient(),
-			garoonClient.GetBaseURL(),
-			garoonClient.GetUsername(),
-			garoonClient.GetPassword(),
-			orgID,
-		)
+		userList, err = users.ListUsersByOrganization(garoonClient, orgID)
 		if err != nil {
 			log.Fatal("組織所属ユーザー一覧の取得に失敗しました:", err)
 		}
 	} else {
-		userList, err = users.ListUsers(
-			garoonClient.GetHTTPClient(),
-			garoonClient.GetBaseURL(),
-			garoonClient.GetUsername(),
-			garoonClient.GetPassword(),
-		)
+		userList, err = users.ListUsers(garoonClient)
 		if err != nil {
 			log.Fatal("ユーザー一覧の取得に失敗しました:", err)
 		}

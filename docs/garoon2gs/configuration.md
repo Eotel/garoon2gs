@@ -21,12 +21,22 @@ Garoon2GSの詳細な設定方法について説明します。
 
 ### 認証関連環境変数
 
-#### パスワード認証
+| 環境変数 | 説明 | 例 |
+|----------|------|-----|
+| `GAROON_AUTH_TYPE` | Garoonの認証方式。`password` または `oauth` | `password` |
+
+#### パスワード認証 (`GAROON_AUTH_TYPE=password`)
 
 | 環境変数 | 説明 | 例 |
 |----------|------|-----|
 | `GAROON_USERNAME` | Garoonのユーザー名 | `admin` |
 | `GAROON_PASSWORD` | Garoonのパスワード | `password123` |
+
+#### OAuth認証 (`GAROON_AUTH_TYPE=oauth`)
+
+| 環境変数 | 説明 | 例 |
+|----------|------|-----|
+| `GAROON_BEARER_TOKEN` | OAuthアクセストークン | `eyJhbGciOi...` |
 
 #### クライアント証明書の追加設定
 
@@ -35,8 +45,8 @@ Garoon2GSの詳細な設定方法について説明します。
 | `CLIENT_CERT_PATH` | クライアント証明書（PFX/PKCS#12形式）のパス | `client-cert.pfx` |
 | `CLIENT_CERT_PASSWORD` | クライアント証明書のパスワード | `cert-password` |
 
-現行実装では Garoon REST API の認証はパスワード認証です。
 クライアント証明書は IP アドレス制限環境で追加指定するための設定です。
+`password` / `oauth` のどちらを使う場合でも、必要に応じて併用します。
 
 ## マッピングファイル
 

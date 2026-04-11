@@ -51,11 +51,13 @@
 
 ## 設定
 
-`list_organizations`は、メインツールと同じ`.env`ファイルを使用します。Garoon REST API の実行にはパスワード認証を使うため、以下の環境変数が必要です：
+`list_organizations`は、メインツールと同じ`.env`ファイルを使用します。Garoon REST API の実行には、以下のいずれかの認証設定が必要です：
 
 - `GAROON_BASE_URL` - GaroonのベースURL
-- `GAROON_USERNAME` - Garoonのユーザー名（パスワード認証）
-- `GAROON_PASSWORD` - Garoonのパスワード（パスワード認証）
+- `GAROON_AUTH_TYPE` - `password` または `oauth`。省略時は `password`
+- `GAROON_USERNAME` - Garoonのユーザー名（`password` 認証時）
+- `GAROON_PASSWORD` - Garoonのパスワード（`password` 認証時）
+- `GAROON_BEARER_TOKEN` - OAuthアクセストークン（`oauth` 認証時）
 - `CLIENT_CERT_PATH` - クライアント証明書のパス（IPアドレス制限環境の場合）
 - `CLIENT_CERT_PASSWORD` - クライアント証明書のパスワード（IPアドレス制限環境の場合）
 

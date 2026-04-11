@@ -13,16 +13,17 @@ Error: Failed to fetch events: 401 Unauthorized
 
 #### 原因と対処法
 
-1. **ユーザー名/パスワードが間違っている**
-   - `.env`ファイルの`GAROON_USERNAME`と`GAROON_PASSWORD`を確認
-   - Garoonに直接ログインできるか確認
+1. **認証方式に対応する認証情報が不足している、または誤っている**
+   - `GAROON_AUTH_TYPE=password` の場合は `.env` ファイルの `GAROON_USERNAME` と `GAROON_PASSWORD` を確認
+   - `GAROON_AUTH_TYPE=oauth` の場合は `GAROON_BEARER_TOKEN` を確認
 
-2. **パスワード認証で使うGaroonログイン情報が不正**
+2. **Garoon側でその認証方式が許可されていない**
    - Garoon管理者にログイン名とパスワードを確認
-   - SAML や 2要素認証の制約がある場合は連携用ユーザーを検討
+   - OAuth を使う場合は Garoon 側の OAuth クライアント設定とスコープを確認
+   - SAML や 2要素認証の制約がある場合は連携用ユーザーや OAuth の利用を検討
 
 3. **パスワードに特殊文字が含まれている**
-   - パスワードをダブルクォートで囲む: `GAROON_PASSWORD="p@ssw0rd!"`
+   - `password` 認証時は、パスワードをダブルクォートで囲む: `GAROON_PASSWORD="p@ssw0rd!"`
 
 ### エラー: Certificate verification failed
 

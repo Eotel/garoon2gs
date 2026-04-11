@@ -47,8 +47,10 @@ make build-all
 
 ```env
 GAROON_BASE_URL="https://<your-subdomain>.cybozu.com/g"
+GAROON_AUTH_TYPE="password"
 GAROON_USERNAME="<your-username>"
 GAROON_PASSWORD="<your-password>"
+# GAROON_BEARER_TOKEN="<your-oauth-access-token>"
 SPREADSHEET_ID="<your-spreadsheet-id>"
 GOOGLE_SERVICE_ACCOUNT_FILE="<your-service-account-file>.json"
 # CLIENT_CERT_PATH="<your-client-cert-path>.pfx"
@@ -65,7 +67,9 @@ USER_MAPPING_PATH="user_mapping.csv"
 主な設定項目：
 
 - `GAROON_BASE_URL`: Garoon のベース URL
-- `GAROON_USERNAME` / `GAROON_PASSWORD`: Garoon のパスワード認証情報
+- `GAROON_AUTH_TYPE`: Garoon の認証方式。`password` または `oauth`。省略時は `password`
+- `GAROON_USERNAME` / `GAROON_PASSWORD`: `password` 認証時に使用
+- `GAROON_BEARER_TOKEN`: `oauth` 認証時に使用するアクセストークン
 - `SPREADSHEET_ID`: 書き込み先 Google スプレッドシート ID
 - `GOOGLE_SERVICE_ACCOUNT_FILE`: Google サービスアカウント JSON のファイル名
 - `SHEET_MAPPING_PATH`: 月とシート名の対応 CSV
@@ -144,8 +148,9 @@ user_id,name
 - スプレッドシートのアクセス権限を適切に設定してください
 - Google サービスアカウントに対象スプレッドシートの編集権限を付与してください
 - Garoonの認証情報は安全に管理してください
-- Garoon REST API の認証は現行実装ではパスワード認証です
-- `CLIENT_CERT_PATH` と `CLIENT_CERT_PASSWORD` は IP アドレス制限環境で追加指定するためのものです
+- `GAROON_AUTH_TYPE=password` の場合は `GAROON_USERNAME` と `GAROON_PASSWORD` が必要です
+- `GAROON_AUTH_TYPE=oauth` の場合は `GAROON_BEARER_TOKEN` が必要です
+- `CLIENT_CERT_PATH` と `CLIENT_CERT_PASSWORD` は IP アドレス制限環境で追加指定するためのものです。認証方式自体は切り替わりません
 
 ## ライセンス
 

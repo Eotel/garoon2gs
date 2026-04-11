@@ -1,9 +1,9 @@
 package organizations
 
 import (
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/eotel/garoon2gs/internal/client"
 	"io"
 	"net/http"
 	"net/url"
@@ -27,12 +27,12 @@ type listOrganizationsResponse struct {
 const maxPageLimit = 1000
 
 // ListOrganizations retrieves all organizations
-func ListOrganizations(client *http.Client, baseURL, username, password string) ([]Organization, error) {
+func ListOrganizations(garoonClient *client.GaroonClient) ([]Organization, error) {
 	var allOrganizations []Organization
 	offset := 0
 
 	for {
-		orgs, hasNext, err := fetchOrganizationsPage(client, baseURL, username, password, offset, maxPageLimit)
+		orgs, hasNext, err := fetchOrganizationsPage(garoonClient, offset, maxPageLimit)
 		if err != nil {
 			return nil, err
 		}
@@ -49,21 +49,20 @@ func ListOrganizations(client *http.Client, baseURL, username, password string) 
 	}
 }
 
-func fetchOrganizationsPage(client *http.Client, baseURL, username, password string, offset, limit int) ([]Organization, bool, error) {
+func fetchOrganizationsPage(garoonClient *client.GaroonClient, offset, limit int) ([]Organization, bool, error) {
 	params := url.Values{}
 	params.Set("offset", strconv.Itoa(offset))
 	params.Set("limit", strconv.Itoa(limit))
 
-	reqURL := fmt.Sprintf("%s/api/v1/base/organizations?%s", baseURL, params.Encode())
+	reqURL := fmt.Sprintf("%s/api/v1/base/organizations?%s", garoonClient.GetBaseURL(), params.Encode())
 	req, err := http.NewRequest("GET", reqURL, nil)
 	if err != nil {
 		return nil, false, fmt.Errorf("リクエストの作成に失敗しました: %v", err)
 	}
 
-	auth := base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%s:%s", username, password)))
-	req.Header.Set("X-Cybozu-Authorization", auth)
+	garoonClient.ApplyAuth(req)
 
-	resp, err := client.Do(req)
+	resp, err := garoonClient.GetHTTPClient().Do(req)
 	if err != nil {
 		return nil, false, fmt.Errorf("APIリクエストに失敗しました: %v", err)
 	}

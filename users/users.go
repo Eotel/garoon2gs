@@ -1,9 +1,9 @@
 package users
 
 import (
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/eotel/garoon2gs/internal/client"
 	"io"
 	"net/http"
 	"net/url"
@@ -31,20 +31,20 @@ type listUsersResponse struct {
 }
 
 // ListUsers はユーザー一覧を取得する関数です
-func ListUsers(client *http.Client, baseURL, username, password string) ([]User, error) {
-	return listUsers(client, baseURL, username, password, "")
+func ListUsers(garoonClient *client.GaroonClient) ([]User, error) {
+	return listUsers(garoonClient, "")
 }
 
 // ListUsersByOrganization は指定した組織に所属するユーザー一覧を取得する関数です
-func ListUsersByOrganization(client *http.Client, baseURL, username, password, orgID string) ([]User, error) {
+func ListUsersByOrganization(garoonClient *client.GaroonClient, orgID string) ([]User, error) {
 	if orgID == "" {
 		return nil, fmt.Errorf("organization ID is required")
 	}
 
-	return listUsers(client, baseURL, username, password, fmt.Sprintf("/api/v1/base/organizations/%s/users", orgID))
+	return listUsers(garoonClient, fmt.Sprintf("/api/v1/base/organizations/%s/users", orgID))
 }
 
-func listUsers(client *http.Client, baseURL, username, password, path string) ([]User, error) {
+func listUsers(garoonClient *client.GaroonClient, path string) ([]User, error) {
 	if path == "" {
 		path = "/api/v1/base/users"
 	}
@@ -53,7 +53,7 @@ func listUsers(client *http.Client, baseURL, username, password, path string) ([
 	offset := 0
 
 	for {
-		users, hasNext, err := fetchUsersPage(client, baseURL, username, password, path, offset, maxPageLimit)
+		users, hasNext, err := fetchUsersPage(garoonClient, path, offset, maxPageLimit)
 		if err != nil {
 			return nil, err
 		}
@@ -70,23 +70,21 @@ func listUsers(client *http.Client, baseURL, username, password, path string) ([
 	}
 }
 
-func fetchUsersPage(client *http.Client, baseURL, username, password, path string, offset, limit int) ([]User, bool, error) {
+func fetchUsersPage(garoonClient *client.GaroonClient, path string, offset, limit int) ([]User, bool, error) {
 	params := url.Values{}
 	params.Set("offset", strconv.Itoa(offset))
 	params.Set("limit", strconv.Itoa(limit))
 
-	reqURL := fmt.Sprintf("%s%s?%s", baseURL, path, params.Encode())
+	reqURL := fmt.Sprintf("%s%s?%s", garoonClient.GetBaseURL(), path, params.Encode())
 	req, err := http.NewRequest("GET", reqURL, nil)
 	if err != nil {
 		return nil, false, fmt.Errorf("リクエストの作成に失敗しました: %v", err)
 	}
 
-	// Basic認証ヘッダーの設定
-	auth := base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%s:%s", username, password)))
-	req.Header.Set("X-Cybozu-Authorization", auth)
+	garoonClient.ApplyAuth(req)
 
 	// リクエストの実行
-	resp, err := client.Do(req)
+	resp, err := garoonClient.GetHTTPClient().Do(req)
 	if err != nil {
 		return nil, false, fmt.Errorf("APIリクエストに失敗しました: %v", err)
 	}

@@ -53,8 +53,10 @@ Garoon2GSは`.env`ファイルから設定を読み込みます。`.env.sample`�
 
 ```
 GAROON_BASE_URL="https://<your-subdomain>.cybozu.com/g"
+GAROON_AUTH_TYPE="password"
 GAROON_USERNAME="<your-username>"
 GAROON_PASSWORD="<your-password>"
+#GAROON_BEARER_TOKEN="<your-oauth-access-token>"
 SPREADSHEET_ID="<your-spreadsheet-id>"
 GOOGLE_SERVICE_ACCOUNT_FILE="<your-service-account-file>.json"
 #CLIENT_CERT_PATH="<your-client-cert-path>.pfx"
@@ -73,8 +75,10 @@ USER_MAPPING_PATH="user_mapping.csv"
 | 環境変数 | 説明 | 必須 |
 |----------|------|------|
 | GAROON_BASE_URL | GaroonのベースURL | ✓ |
-| GAROON_USERNAME | Garoonのユーザー名 | ✓ |
-| GAROON_PASSWORD | Garoonのパスワード | ✓ |
+| GAROON_AUTH_TYPE | Garoonの認証方式。`password` または `oauth` | 省略可 |
+| GAROON_USERNAME | Garoonのユーザー名 | `password` 認証時 |
+| GAROON_PASSWORD | Garoonのパスワード | `password` 認証時 |
+| GAROON_BEARER_TOKEN | OAuthアクセストークン | `oauth` 認証時 |
 | SPREADSHEET_ID | Google SheetsのスプレッドシートID | ✓ |
 | GOOGLE_SERVICE_ACCOUNT_FILE | Google Cloud Platformのサービスアカウントキーファイルのパス | ✓ |
 | CLIENT_CERT_PATH | クライアント証明書（PFX形式）のパス | IPアドレス制限環境の場合 |
@@ -124,13 +128,23 @@ user_id,name
 
 ```
 GAROON_BASE_URL="https://<your-subdomain>.cybozu.com/g"
+GAROON_AUTH_TYPE="password"
 GAROON_USERNAME="<your-username>"
 GAROON_PASSWORD="<your-password>"
 ```
 
+#### OAuth認証
+
+`.env`ファイルに以下の情報を設定します：
+
+```
+GAROON_BASE_URL="https://<your-subdomain>.cybozu.com/g"
+GAROON_AUTH_TYPE="oauth"
+GAROON_BEARER_TOKEN="<your-oauth-access-token>"
+```
+
 #### クライアント証明書の追加設定
 
-Garoon REST API の認証自体は現行実装ではユーザー名/パスワード認証です。
 IPアドレス制限環境でアクセスする場合は、追加で `.env` ファイルに以下の情報を設定します：
 
 ```
@@ -139,6 +153,7 @@ CLIENT_CERT_PASSWORD="<your-client-cert-password>"
 ```
 
 クライアント証明書を使用する場合、GaroonのURLは `.s.cybozu.com` ドメインを使用してください。
+クライアント証明書は `password` / `oauth` のどちらを使う場合でも、IPアドレス制限環境で必要に応じて追加します。
 
 ### Google Sheets認証
 

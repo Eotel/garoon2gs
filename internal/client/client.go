@@ -15,15 +15,25 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
+)
+
+type AuthType string
+
+const (
+	AuthTypePassword AuthType = "password"
+	AuthTypeOAuth    AuthType = "oauth"
 )
 
 // Config はクライアントの設定を保持する構造体です
 type Config struct {
 	ConfigDir    string
 	BaseURL      string
+	AuthType     AuthType
 	Username     string
 	Password     string
+	BearerToken  string
 	CertPath     string
 	CertPassword string
 }
@@ -69,6 +79,21 @@ func (c *GaroonClient) GetConfigDir() string {
 	return c.config.ConfigDir
 }
 
+func normalizeAuthType(value string) AuthType {
+	switch AuthType(strings.ToLower(strings.TrimSpace(value))) {
+	case "", AuthTypePassword:
+		return AuthTypePassword
+	case AuthTypeOAuth:
+		return AuthTypeOAuth
+	default:
+		return AuthType(strings.ToLower(strings.TrimSpace(value)))
+	}
+}
+
+func (c *Config) EffectiveAuthType() AuthType {
+	return normalizeAuthType(string(c.AuthType))
+}
+
 func (c *Config) HasClientCertificate() bool {
 	return c.CertPath != "" && c.CertPassword != ""
 }
@@ -76,8 +101,6 @@ func (c *Config) HasClientCertificate() bool {
 func (c *Config) Validate() error {
 	required := map[string]string{
 		"GAROON_BASE_URL": c.BaseURL,
-		"GAROON_USERNAME": c.Username,
-		"GAROON_PASSWORD": c.Password,
 	}
 
 	var missingVars []string
@@ -86,6 +109,23 @@ func (c *Config) Validate() error {
 			missingVars = append(missingVars, key)
 		}
 	}
+
+	switch c.EffectiveAuthType() {
+	case AuthTypePassword:
+		if c.Username == "" {
+			missingVars = append(missingVars, "GAROON_USERNAME")
+		}
+		if c.Password == "" {
+			missingVars = append(missingVars, "GAROON_PASSWORD")
+		}
+	case AuthTypeOAuth:
+		if c.BearerToken == "" {
+			missingVars = append(missingVars, "GAROON_BEARER_TOKEN")
+		}
+	default:
+		return fmt.Errorf("GAROON_AUTH_TYPE には password または oauth を設定してください: %s", c.AuthType)
+	}
+
 	if len(missingVars) > 0 {
 		return fmt.Errorf("Garoon接続に必要な環境変数が設定されていません: %v", missingVars)
 	}
@@ -132,8 +172,10 @@ func LoadConfig() (*Config, error) {
 	return &Config{
 		ConfigDir:    configDir,
 		BaseURL:      os.Getenv("GAROON_BASE_URL"),
+		AuthType:     normalizeAuthType(os.Getenv("GAROON_AUTH_TYPE")),
 		Username:     os.Getenv("GAROON_USERNAME"),
 		Password:     os.Getenv("GAROON_PASSWORD"),
+		BearerToken:  os.Getenv("GAROON_BEARER_TOKEN"),
 		CertPath:     resolveOptionalPath(configDir, os.Getenv("CLIENT_CERT_PATH")),
 		CertPassword: os.Getenv("CLIENT_CERT_PASSWORD"),
 	}, nil
@@ -157,6 +199,16 @@ func resolveOptionalPath(baseDir, fileName string) string {
 		return ""
 	}
 	return filepath.Join(baseDir, fileName)
+}
+
+func (c *GaroonClient) ApplyAuth(req *http.Request) {
+	switch c.config.EffectiveAuthType() {
+	case AuthTypeOAuth:
+		req.Header.Set("Authorization", "Bearer "+c.config.BearerToken)
+	default:
+		auth := base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%s:%s", c.config.Username, c.config.Password)))
+		req.Header.Set("X-Cybozu-Authorization", auth)
+	}
 }
 
 // NewClient は新しいGaroonClientインスタンスを作成します
@@ -227,8 +279,7 @@ func (c *GaroonClient) FetchEvents(startDate, endDate time.Time, targetUserID st
 			return nil, false, fmt.Errorf("リクエストの作成に失敗しました: %v", err)
 		}
 
-		auth := base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%s:%s", c.config.Username, c.config.Password)))
-		req.Header.Set("X-Cybozu-Authorization", auth)
+		c.ApplyAuth(req)
 		req.Header.Set("Content-Type", "application/json")
 
 		resp, err := c.client.Do(req)
@@ -238,10 +289,13 @@ func (c *GaroonClient) FetchEvents(startDate, endDate time.Time, targetUserID st
 		defer resp.Body.Close()
 
 		// ステータスコードチェック
-		if resp.StatusCode == http.StatusForbidden ||
-			resp.StatusCode == http.StatusUnauthorized ||
-			resp.StatusCode == 496 { // No Cert
+		if resp.StatusCode == 496 { // No Cert
 			return nil, false, fmt.Errorf("認証エラー: クライアント証明書が必要です（ステータスコード: %d）", resp.StatusCode)
+		}
+
+		if resp.StatusCode == http.StatusForbidden || resp.StatusCode == http.StatusUnauthorized {
+			body, _ := io.ReadAll(resp.Body)
+			return nil, false, fmt.Errorf("認証エラー（ステータスコード: %d）: %s", resp.StatusCode, string(body))
 		}
 
 		if resp.StatusCode != http.StatusOK {

@@ -2,10 +2,32 @@ package organizations
 
 import (
 	"encoding/json"
+	"github.com/eotel/garoon2gs/internal/client"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 )
+
+func newTestGaroonClient(t *testing.T, baseURL string, authType client.AuthType) *client.GaroonClient {
+	t.Helper()
+
+	cfg := &client.Config{BaseURL: baseURL}
+	switch authType {
+	case client.AuthTypeOAuth:
+		cfg.AuthType = client.AuthTypeOAuth
+		cfg.BearerToken = "token"
+	default:
+		cfg.Username = "user"
+		cfg.Password = "pass"
+	}
+
+	garoonClient, err := client.NewClient(cfg)
+	if err != nil {
+		t.Fatalf("NewClient returned error: %v", err)
+	}
+
+	return garoonClient
+}
 
 func TestListOrganizationsPaginatesAllOrganizations(t *testing.T) {
 	t.Helper()
@@ -44,7 +66,7 @@ func TestListOrganizationsPaginatesAllOrganizations(t *testing.T) {
 	}))
 	defer server.Close()
 
-	orgs, err := ListOrganizations(server.Client(), server.URL, "user", "pass")
+	orgs, err := ListOrganizations(newTestGaroonClient(t, server.URL, client.AuthTypePassword))
 	if err != nil {
 		t.Fatalf("ListOrganizations returned error: %v", err)
 	}
@@ -55,5 +77,27 @@ func TestListOrganizationsPaginatesAllOrganizations(t *testing.T) {
 
 	if len(offsets) != 2 || offsets[0] != "0" || offsets[1] != "2" {
 		t.Fatalf("offsets = %v, want [0 2]", offsets)
+	}
+}
+
+func TestListOrganizationsUsesBearerTokenForOAuth(t *testing.T) {
+	t.Helper()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if got := r.Header.Get("Authorization"); got != "Bearer token" {
+			t.Fatalf("Authorization = %q, want %q", got, "Bearer token")
+		}
+		if got := r.Header.Get("X-Cybozu-Authorization"); got != "" {
+			t.Fatalf("X-Cybozu-Authorization = %q, want empty", got)
+		}
+
+		if err := json.NewEncoder(w).Encode(listOrganizationsResponse{HasNext: false}); err != nil {
+			t.Fatalf("failed to encode response: %v", err)
+		}
+	}))
+	defer server.Close()
+
+	if _, err := ListOrganizations(newTestGaroonClient(t, server.URL, client.AuthTypeOAuth)); err != nil {
+		t.Fatalf("ListOrganizations returned error: %v", err)
 	}
 }
