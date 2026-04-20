@@ -152,7 +152,7 @@ func (w *ScheduleWriter) getCellPosition(date time.Time) (row int, col string, e
 func (w *ScheduleWriter) determineEventStatus(events []client.Event) string {
 	if len(events) == 0 {
 		// 予定がない場合は通常の勤務地を返す
-		return "渋谷"
+		return w.normalPlace
 	}
 
 	// 1. 休み判定が一つでもあるかチェック
@@ -173,8 +173,8 @@ func (w *ScheduleWriter) determineEventStatus(events []client.Event) string {
 		}
 	}
 
-	// 3. それ以外の場合は "渋谷" を返す
-	return "渋谷"
+	// 3. それ以外の場合は通常の勤務地を返す
+	return w.normalPlace
 }
 
 // columnIndexToName は0-based indexをA1記法の列名に変換します
@@ -274,9 +274,12 @@ func (w *ScheduleWriter) WriteSchedule(srv *sheets.Service, spreadsheetID, sheet
 		// このシートのこの日の日付を計算
 		cellDate := time.Date(sheetMonth.Year(), sheetMonth.Month(), day, 0, 0, 0, 0, time.Local)
 
-		// 過去の日付はスキップ
-		if cellDate.Before(today) {
-			log.Printf("Skipping past date: %s (before today: %s)", cellDate.Format("2006-01-02"), today.Format("2006-01-02"))
+		// 過去の日付でも、現在の月と同じか未来の月であれば処理する
+		isCurrentOrFutureMonth := cellDate.Year() > today.Year() ||
+			(cellDate.Year() == today.Year() && cellDate.Month() >= today.Month())
+		if cellDate.Before(today) && !isCurrentOrFutureMonth {
+			log.Printf("Skipping past date: %s (before today: %s and not in current or future month)",
+				cellDate.Format("2006-01-02"), today.Format("2006-01-02"))
 			continue
 		}
 

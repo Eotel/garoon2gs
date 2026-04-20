@@ -1,10 +1,5 @@
 ### VisualStudioCode template
-.vscode/*
-!.vscode/settings.json
-!.vscode/tasks.json
-!.vscode/launch.json
-!.vscode/extensions.json
-!.vscode/*.code-snippets
+.vscode/
 
 # Local History for Visual Studio Code
 .history/
@@ -166,6 +161,20 @@ go.work.sum
 .env
 .env.*
 !.env.sample
+
+# Local build artifacts
+/garoon2gs
+/list_users
+/list_organizations
+/dist/
+
+# Local credentials and one-off config
+/garoon2gs-*.json
+/sheet_mapping.r8.csv
+/user_mapping.r8.csv
+
+# JetBrains local project files not covered above
+.idea/*.xml
 
 ### VisualStudio template
 ## Ignore Visual Studio temporary files, build results, and

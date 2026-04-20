@@ -8,7 +8,7 @@ GaroonのスケジュールをGoogle Sheetsに同期するツールです。複�
 - スプレッドシートのヘッダー名に基づく列マッピング
 - 月別シートの自動マッピング
 - 休暇・外出などのイベント種別の自動判定
-- クライアント証明書認証対応
+- IPアドレス制限環境向けのクライアント証明書ファイル読み込み対応
 - 過去日付の上書き防止機能
 
 ## 必要条件
@@ -47,10 +47,14 @@ make build-all
 
 ```env
 GAROON_BASE_URL="https://<your-subdomain>.cybozu.com/g"
+GAROON_AUTH_TYPE="password"
 GAROON_USERNAME="<your-username>"
 GAROON_PASSWORD="<your-password>"
+# GAROON_BEARER_TOKEN="<your-oauth-access-token>"
 SPREADSHEET_ID="<your-spreadsheet-id>"
 GOOGLE_SERVICE_ACCOUNT_FILE="<your-service-account-file>.json"
+# CLIENT_CERT_PATH="<your-client-cert-path>.pfx"
+# CLIENT_CERT_PASSWORD="<your-client-cert-password>"
 HOLIDAY_MENUS='["休み", "週休", "祝休日", "年次休暇"]'
 OUTING_MENUS='["外出", "出張", "視察", "訪問"]'
 NORMAL_PLACE="渋谷"
@@ -58,10 +62,26 @@ SHEET_MAPPING_PATH="sheet_mapping.csv"
 HEADER_ROW=7
 DATE_COL=A
 USER_MAPPING_PATH="user_mapping.csv"
-# NAME環境変数は不要（ユーザーマッピングから自動的に取得されます）
 ```
 
-2. `sheet_mapping.csv`でシート名のマッピングを設定：
+主な設定項目：
+
+- `GAROON_BASE_URL`: Garoon のベース URL
+- `GAROON_AUTH_TYPE`: Garoon の認証方式。`password` または `oauth`。省略時は `password`
+- `GAROON_USERNAME` / `GAROON_PASSWORD`: `password` 認証時に使用
+- `GAROON_BEARER_TOKEN`: `oauth` 認証時に使用するアクセストークン
+- `SPREADSHEET_ID`: 書き込み先 Google スプレッドシート ID
+- `GOOGLE_SERVICE_ACCOUNT_FILE`: Google サービスアカウント JSON のファイル名
+- `SHEET_MAPPING_PATH`: 月とシート名の対応 CSV
+- `HEADER_ROW`: 名前が並んでいるヘッダー行番号
+- `DATE_COL`: 日付列の列名
+- `USER_MAPPING_PATH`: Garoon ユーザー ID とヘッダー名の対応 CSV
+- `HOLIDAY_MENUS`: 休暇扱いにする Garoon メニュー名の JSON 配列
+- `OUTING_MENUS`: 外出扱いにする Garoon メニュー名の JSON 配列
+- `NORMAL_PLACE`: 予定がない日に書き込む通常勤務地
+
+2. `sheet_mapping.csv` でシート名のマッピングを設定します。
+実装上の形式は `month,sheet_name` で、月は `YYYY-MM` です。
 
 ```csv
 month,sheet_name
@@ -70,7 +90,8 @@ month,sheet_name
 ...
 ```
 
-3. `user_mapping.csv`でユーザーと列のマッピングを設定：
+3. `user_mapping.csv` で Garoon ユーザー ID とスプレッドシートのヘッダー名を対応付けます。
+ヘッダーは `user_id,name` 固定です。
 
 ```csv
 user_id,name
@@ -84,10 +105,17 @@ user_id,name
 ```bash
 # 実行
 ./garoon2gs
-
-# 開発用（環境変数を.env.devから読み込む）
-./garoon2gs -env dev
 ```
+
+利用可能なオプションは `-version` のみです。
+
+```bash
+./garoon2gs -version
+```
+
+設定ファイルは、まず実行ファイルと同じディレクトリの `.env` を探し、見つからない場合はカレントディレクトリの `.env` を読み込みます。
+
+実行時は、現在月の1日から 3 か月先の月末までの予定を取得します。
 
 ## 開発者向け設定
 
@@ -107,18 +135,22 @@ user_id,name
 
 ## スプレッドシートの要件
 
-- ヘッダー行に各ユーザーの名前が設定されていること
-- DATE列に日付が入力されていること
-- ユーザー列には以下の値が書き込まれます：
-    - 通常勤務：指定された勤務地
-    - 休暇："週休"
-    - 外出・出張：指定されたメニューに応じて"外出"など
+- `HEADER_ROW` で指定した行に各ユーザーの名前が設定されていること
+- `DATE_COL` で指定した列に `1,2,3,...` の日番号が入力されていること
+- `user_mapping.csv` の `name` がヘッダーの表示名と完全一致していること
+- ユーザー列には以下の値が書き込まれます
+- 通常勤務: `NORMAL_PLACE` の値
+- 休暇: `週休`
+- 外出・出張: `外出`
 
 ## 注意事項
 
 - スプレッドシートのアクセス権限を適切に設定してください
+- Google サービスアカウントに対象スプレッドシートの編集権限を付与してください
 - Garoonの認証情報は安全に管理してください
-- クライアント証明書が必要な環境では適切に設定してください
+- `GAROON_AUTH_TYPE=password` の場合は `GAROON_USERNAME` と `GAROON_PASSWORD` が必要です
+- `GAROON_AUTH_TYPE=oauth` の場合は `GAROON_BEARER_TOKEN` が必要です
+- `CLIENT_CERT_PATH` と `CLIENT_CERT_PASSWORD` は IP アドレス制限環境で追加指定するためのものです。認証方式自体は切り替わりません
 
 ## ライセンス
 

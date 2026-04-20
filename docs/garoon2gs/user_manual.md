@@ -1,6 +1,7 @@
 # Garoon2GS ユーザーマニュアル
 
 ## 目次
+
 1. [概要](#概要)
 2. [前提条件](#前提条件)
 3. [インストール方法](#インストール方法)
@@ -52,8 +53,10 @@ Garoon2GSは`.env`ファイルから設定を読み込みます。`.env.sample`�
 
 ```
 GAROON_BASE_URL="https://<your-subdomain>.cybozu.com/g"
+GAROON_AUTH_TYPE="password"
 GAROON_USERNAME="<your-username>"
 GAROON_PASSWORD="<your-password>"
+#GAROON_BEARER_TOKEN="<your-oauth-access-token>"
 SPREADSHEET_ID="<your-spreadsheet-id>"
 GOOGLE_SERVICE_ACCOUNT_FILE="<your-service-account-file>.json"
 #CLIENT_CERT_PATH="<your-client-cert-path>.pfx"
@@ -72,12 +75,14 @@ USER_MAPPING_PATH="user_mapping.csv"
 | 環境変数 | 説明 | 必須 |
 |----------|------|------|
 | GAROON_BASE_URL | GaroonのベースURL | ✓ |
-| GAROON_USERNAME | Garoonのユーザー名 | ✓（クライアント証明書認証を使用しない場合） |
-| GAROON_PASSWORD | Garoonのパスワード | ✓（クライアント証明書認証を使用しない場合） |
+| GAROON_AUTH_TYPE | Garoonの認証方式。`password` または `oauth` | 省略可 |
+| GAROON_USERNAME | Garoonのユーザー名 | `password` 認証時 |
+| GAROON_PASSWORD | Garoonのパスワード | `password` 認証時 |
+| GAROON_BEARER_TOKEN | OAuthアクセストークン | `oauth` 認証時 |
 | SPREADSHEET_ID | Google SheetsのスプレッドシートID | ✓ |
 | GOOGLE_SERVICE_ACCOUNT_FILE | Google Cloud Platformのサービスアカウントキーファイルのパス | ✓ |
-| CLIENT_CERT_PATH | クライアント証明書（PFX形式）のパス | ✓（クライアント証明書認証を使用する場合） |
-| CLIENT_CERT_PASSWORD | クライアント証明書のパスワード | ✓（クライアント証明書認証を使用する場合） |
+| CLIENT_CERT_PATH | クライアント証明書（PFX形式）のパス | IPアドレス制限環境の場合 |
+| CLIENT_CERT_PASSWORD | クライアント証明書のパスワード | IPアドレス制限環境の場合 |
 | HOLIDAY_MENUS | 休暇として扱うイベントメニューのJSON配列 | ✓ |
 | OUTING_MENUS | 外出として扱うイベントメニューのJSON配列 | ✓ |
 | NORMAL_PLACE | 通常勤務の場所（例：「渋谷」） | ✓ |
@@ -93,9 +98,9 @@ USER_MAPPING_PATH="user_mapping.csv"
 月ごとのシート名を定義するCSVファイルです。以下の形式で作成してください：
 
 ```csv
-year,month,sheet_name
-2025,1,2025年1月
-2025,2,2025年2月
+month,sheet_name
+2025-01,2025年1月
+2025-02,2025年2月
 ...
 ```
 
@@ -104,14 +109,14 @@ year,month,sheet_name
 GaroonのユーザーIDとスプレッドシートの列を対応付けるCSVファイルです。以下の形式で作成してください：
 
 ```csv
-user_id,header_name
+user_id,name
 12345,伊藤
 67890,田中
 ...
 ```
 
 - `user_id`: GaroonのユーザーID
-- `header_name`: スプレッドシートのヘッダーに表示されるユーザー名
+- `name`: スプレッドシートのヘッダーに表示されるユーザー名
 
 ## 認証情報の設定
 
@@ -123,19 +128,32 @@ user_id,header_name
 
 ```
 GAROON_BASE_URL="https://<your-subdomain>.cybozu.com/g"
+GAROON_AUTH_TYPE="password"
 GAROON_USERNAME="<your-username>"
 GAROON_PASSWORD="<your-password>"
 ```
 
-#### クライアント証明書認証
+#### OAuth認証
 
-クライアント証明書認証を使用する場合は、`.env`ファイルに以下の情報を設定します：
+`.env`ファイルに以下の情報を設定します：
 
 ```
 GAROON_BASE_URL="https://<your-subdomain>.cybozu.com/g"
+GAROON_AUTH_TYPE="oauth"
+GAROON_BEARER_TOKEN="<your-oauth-access-token>"
+```
+
+#### クライアント証明書の追加設定
+
+IPアドレス制限環境でアクセスする場合は、追加で `.env` ファイルに以下の情報を設定します：
+
+```
 CLIENT_CERT_PATH="<your-client-cert-path>.pfx"
 CLIENT_CERT_PASSWORD="<your-client-cert-password>"
 ```
+
+クライアント証明書を使用する場合、GaroonのURLは `.s.cybozu.com` ドメインを使用してください。
+クライアント証明書は `password` / `oauth` のどちらを使う場合でも、IPアドレス制限環境で必要に応じて追加します。
 
 ### Google Sheets認証
 
@@ -180,16 +198,11 @@ Garoon2GSは、以下の形式のスプレッドシートを前提としてい�
 ./garoon2gs
 ```
 
-デフォルトでは、現在の月から3ヶ月先までのスケジュールを取得します。特定の期間を指定する場合は、以下のオプションを使用します：
+デフォルトでは、現在の月から3ヶ月先までのスケジュールを取得します。
+利用可能なオプションは `-version` のみです。
 
 ```bash
-./garoon2gs --start-date 2025-01-01 --end-date 2025-12-31
-```
-
-特定のユーザーのみを対象とする場合は、以下のオプションを使用します：
-
-```bash
-./garoon2gs --users 12345,67890
+./garoon2gs -version
 ```
 
 ## トラブルシューティング
@@ -226,16 +239,19 @@ Garoon2GSは、Garoon REST APIを使用してスケジュールデータを取�
 Garoon2GSでは、主に以下のAPIエンドポイントを使用しています：
 
 1. **スケジュール取得**
+
    ```
    GET /api/v1/schedule/events?rangeStart={start}&rangeEnd={end}&target={user_id}
    ```
 
 2. **ユーザー情報取得**
+
    ```
    GET /api/v1/base/users?offset={offset}&limit={limit}
    ```
 
 3. **組織情報取得**
+
    ```
    GET /api/v1/base/organizations?offset={offset}&limit={limit}
    ```

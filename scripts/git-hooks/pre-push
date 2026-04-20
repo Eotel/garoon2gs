@@ -1,0 +1,29 @@
+#!/bin/sh
+
+set -eu
+
+echo "Running pre-push hook..."
+
+echo "Formatting Go code..."
+go fmt ./...
+
+if ! git diff --quiet -- '*.go'; then
+  echo "Formatting changed Go files. Commit the formatted changes before pushing."
+  git diff --name-only -- '*.go'
+  exit 1
+fi
+
+echo "Running go vet..."
+go vet ./...
+
+if command -v golangci-lint >/dev/null 2>&1; then
+  echo "Running golangci-lint..."
+  golangci-lint run
+else
+  echo "golangci-lint not found. Skipping."
+fi
+
+echo "Running tests..."
+go test ./...
+
+echo "Pre-push hook finished successfully"

@@ -1,0 +1,39 @@
+name: Build and Test Commands
+description: |
+  Common commands for building and testing the Garoon2GS project
+rules:
+  - description: Build
+    explanation: |
+      `go build .`
+  
+  - description: Test All
+    explanation: |
+      `go test ./...`
+  
+  - description: Test Specific File
+    explanation: |
+      `go test -v ./path/to/file_test.go`
+  
+  - description: Test Specific Function
+    explanation: |
+      `go test -v -run TestFunctionName`
+  
+  - description: Format Code
+    explanation: |
+      `go fmt ./...`
+  
+  - description: Lint Code
+    explanation: |
+      `go vet ./...`
+  
+  - description: Build for Release
+    explanation: |
+      `make release` (builds for all platforms)
+  
+  - description: Build and Sign for macOS
+    explanation: |
+      `make release-mac` (includes notarization)
+  
+  - description: Install Git Hooks
+    explanation: |
+      `./scripts/install-hooks.sh`

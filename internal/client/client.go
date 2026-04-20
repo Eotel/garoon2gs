@@ -15,17 +15,29 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
+)
+
+type AuthType string
+
+const (
+	AuthTypePassword AuthType = "password"
+	AuthTypeOAuth    AuthType = "oauth"
 )
 
 // Config はクライアントの設定を保持する構造体です
 type Config struct {
-	ConfigDir    string
-	BaseURL      string
-	Username     string
-	Password     string
-	CertPath     string
-	CertPassword string
+	ConfigDir       string
+	BaseURL         string
+	AuthType        AuthType
+	Username        string
+	Password        string
+	BearerToken     string
+	CertPath        string
+	CertPathSet     bool
+	CertPassword    string
+	CertPasswordSet bool
 }
 
 // GaroonClient はGaroon APIクライアントを表す構造体です
@@ -65,6 +77,71 @@ func (c *GaroonClient) GetPassword() string {
 	return c.config.Password
 }
 
+func (c *GaroonClient) GetConfigDir() string {
+	return c.config.ConfigDir
+}
+
+func normalizeAuthType(value string) AuthType {
+	switch AuthType(strings.ToLower(strings.TrimSpace(value))) {
+	case "", AuthTypePassword:
+		return AuthTypePassword
+	case AuthTypeOAuth:
+		return AuthTypeOAuth
+	default:
+		return AuthType(strings.ToLower(strings.TrimSpace(value)))
+	}
+}
+
+func (c *Config) EffectiveAuthType() AuthType {
+	return normalizeAuthType(string(c.AuthType))
+}
+
+func (c *Config) HasClientCertificate() bool {
+	return c.CertPathSet && c.CertPasswordSet
+}
+
+func (c *Config) Validate() error {
+	required := map[string]string{
+		"GAROON_BASE_URL": c.BaseURL,
+	}
+
+	var missingVars []string
+	for key, value := range required {
+		if value == "" {
+			missingVars = append(missingVars, key)
+		}
+	}
+
+	switch c.EffectiveAuthType() {
+	case AuthTypePassword:
+		if c.Username == "" {
+			missingVars = append(missingVars, "GAROON_USERNAME")
+		}
+		if c.Password == "" {
+			missingVars = append(missingVars, "GAROON_PASSWORD")
+		}
+	case AuthTypeOAuth:
+		if c.BearerToken == "" {
+			missingVars = append(missingVars, "GAROON_BEARER_TOKEN")
+		}
+	default:
+		return fmt.Errorf("GAROON_AUTH_TYPE には password または oauth を設定してください: %s", c.AuthType)
+	}
+
+	if len(missingVars) > 0 {
+		return fmt.Errorf("Garoon接続に必要な環境変数が設定されていません: %v", missingVars)
+	}
+
+	if c.CertPathSet != c.CertPasswordSet {
+		return fmt.Errorf("クライアント証明書を使う場合は CLIENT_CERT_PATH と CLIENT_CERT_PASSWORD の両方を設定してください")
+	}
+	if c.CertPathSet && strings.TrimSpace(c.CertPath) == "" {
+		return fmt.Errorf("CLIENT_CERT_PATH が空です")
+	}
+
+	return nil
+}
+
 func GetConfigDir() (string, error) {
 	// まず実行ファイルのディレクトリを試す
 	if exePath, err := os.Executable(); err == nil {
@@ -84,53 +161,89 @@ func GetConfigDir() (string, error) {
 	return os.Getwd()
 }
 
-// getConfigDir は設定ファイルのディレクトリを取得します
-func getConfigDir() (string, error) {
-	// まず実行ファイルのディレクトリを試す
-	if exePath, err := os.Executable(); err == nil {
-		dir := filepath.Dir(exePath)
-		if _, err := os.Stat(filepath.Join(dir, ".env")); err == nil {
-			return dir, nil
-		}
+func lookupConfigValue(fileValues map[string]string, hasEnvFile bool, key string) (string, bool) {
+	if hasEnvFile {
+		value, ok := fileValues[key]
+		return value, ok
 	}
-
-	// 次にカレントディレクトリを試す
-	if pwd, err := os.Getwd(); err == nil {
-		if _, err := os.Stat(filepath.Join(pwd, ".env")); err == nil {
-			return pwd, nil
-		}
-	}
-
-	// 最後にカレントディレクトリを返す（.envが見つからなくても）
-	return os.Getwd()
+	return os.LookupEnv(key)
 }
 
 // LoadConfig は環境変数から設定を読み込みます
 func LoadConfig() (*Config, error) {
-	configDir, err := getConfigDir()
+	configDir, err := GetConfigDir()
 	if err != nil {
 		return nil, fmt.Errorf("設定ディレクトリの取得に失敗しました: %v", err)
 	}
 
-	if err := godotenv.Load(filepath.Join(configDir, ".env")); err != nil {
+	envFilePath := filepath.Join(configDir, ".env")
+	if err := godotenv.Load(envFilePath); err != nil {
 		log.Println("Warning: .env ファイルが見つかりませんでした")
 	}
 
+	fileValues, err := godotenv.Read(envFilePath)
+	hasEnvFile := err == nil
+	if err != nil && !os.IsNotExist(err) {
+		return nil, fmt.Errorf(".env ファイルの読み込みに失敗しました: %v", err)
+	}
+
+	baseURL, _ := lookupConfigValue(fileValues, hasEnvFile, "GAROON_BASE_URL")
+	authType, _ := lookupConfigValue(fileValues, hasEnvFile, "GAROON_AUTH_TYPE")
+	username, _ := lookupConfigValue(fileValues, hasEnvFile, "GAROON_USERNAME")
+	password, _ := lookupConfigValue(fileValues, hasEnvFile, "GAROON_PASSWORD")
+	bearerToken, _ := lookupConfigValue(fileValues, hasEnvFile, "GAROON_BEARER_TOKEN")
+	certPath, certPathSet := lookupConfigValue(fileValues, hasEnvFile, "CLIENT_CERT_PATH")
+	certPassword, certPasswordSet := lookupConfigValue(fileValues, hasEnvFile, "CLIENT_CERT_PASSWORD")
+
 	return &Config{
-		ConfigDir:    configDir,
-		BaseURL:      os.Getenv("GAROON_BASE_URL"),
-		Username:     os.Getenv("GAROON_USERNAME"),
-		Password:     os.Getenv("GAROON_PASSWORD"),
-		CertPath:     filepath.Join(configDir, os.Getenv("CLIENT_CERT_PATH")),
-		CertPassword: os.Getenv("CLIENT_CERT_PASSWORD"),
+		ConfigDir:       configDir,
+		BaseURL:         baseURL,
+		AuthType:        normalizeAuthType(authType),
+		Username:        username,
+		Password:        password,
+		BearerToken:     bearerToken,
+		CertPath:        resolveOptionalPath(configDir, certPath),
+		CertPathSet:     certPathSet,
+		CertPassword:    certPassword,
+		CertPasswordSet: certPasswordSet,
 	}, nil
+}
+
+func LoadConfiguredClient() (*GaroonClient, error) {
+	config, err := LoadConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	if err := config.Validate(); err != nil {
+		return nil, err
+	}
+
+	return NewClient(config)
+}
+
+func resolveOptionalPath(baseDir, fileName string) string {
+	if fileName == "" {
+		return ""
+	}
+	return filepath.Join(baseDir, fileName)
+}
+
+func (c *GaroonClient) ApplyAuth(req *http.Request) {
+	switch c.config.EffectiveAuthType() {
+	case AuthTypeOAuth:
+		req.Header.Set("Authorization", "Bearer "+c.config.BearerToken)
+	default:
+		auth := base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%s:%s", c.config.Username, c.config.Password)))
+		req.Header.Set("X-Cybozu-Authorization", auth)
+	}
 }
 
 // NewClient は新しいGaroonClientインスタンスを作成します
 func NewClient(config *Config) (*GaroonClient, error) {
 	var httpClient *http.Client
 
-	if config.CertPath != "" && config.CertPassword != "" {
+	if config.HasClientCertificate() {
 		pfxData, err := os.ReadFile(config.CertPath)
 		if err != nil {
 			return nil, fmt.Errorf("証明書の読み込みに失敗しました: %v", err)
@@ -194,8 +307,7 @@ func (c *GaroonClient) FetchEvents(startDate, endDate time.Time, targetUserID st
 			return nil, false, fmt.Errorf("リクエストの作成に失敗しました: %v", err)
 		}
 
-		auth := base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%s:%s", c.config.Username, c.config.Password)))
-		req.Header.Set("X-Cybozu-Authorization", auth)
+		c.ApplyAuth(req)
 		req.Header.Set("Content-Type", "application/json")
 
 		resp, err := c.client.Do(req)
@@ -205,10 +317,13 @@ func (c *GaroonClient) FetchEvents(startDate, endDate time.Time, targetUserID st
 		defer resp.Body.Close()
 
 		// ステータスコードチェック
-		if resp.StatusCode == http.StatusForbidden ||
-			resp.StatusCode == http.StatusUnauthorized ||
-			resp.StatusCode == 496 { // No Cert
+		if resp.StatusCode == 496 { // No Cert
 			return nil, false, fmt.Errorf("認証エラー: クライアント証明書が必要です（ステータスコード: %d）", resp.StatusCode)
+		}
+
+		if resp.StatusCode == http.StatusForbidden || resp.StatusCode == http.StatusUnauthorized {
+			body, _ := io.ReadAll(resp.Body)
+			return nil, false, fmt.Errorf("認証エラー（ステータスコード: %d）: %s", resp.StatusCode, string(body))
 		}
 
 		if resp.StatusCode != http.StatusOK {
